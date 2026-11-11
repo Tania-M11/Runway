@@ -18,7 +18,7 @@ Proyecto de clase sobre **integración de mapas en el desarrollo móvil**: el ma
 | Base local (offline) | Room (SQLite) |
 | Sincronización diferida | WorkManager (se ejecuta cuando vuelve la red) |
 | Backend | Supabase (Auth + PostgreSQL) con `supabase-kt` |
-| Gráficas | Vico |
+| Gráficas | Canvas de Compose (barras propias, sin librería) |
 
 ## Mecanismos técnicos de la integración de mapas
 
@@ -73,7 +73,7 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 4 | Planificar con Valhalla: circuitos, comparación y detalle | 5.4, 5.5, 5.6 | Hecha |
 | 5 | Room: guardar rutas (privada o reutilizable) y Mis rutas con filtros, renombrar y eliminar | 5.6, 5.11 | Hecha |
 | 6 | Entrenamiento activo con servicio en primer plano, pausa, recuperación tras cierre y resumen | 5.7, 5.8, 5.9 | Hecha |
-| 7 | Historial, estadísticas e Inicio con datos reales | 5.10, 5.2 | |
+| 7 | Historial (7 días, 30 días, 12 meses), gráficas, récords e Inicio con datos reales | 5.10, 5.2 | Hecha |
 | 8 | Supabase: sesión anónima y sincronización diferida | 7 | |
 | 9 | Perfil y pruebas de campo | 5.12 | |
 

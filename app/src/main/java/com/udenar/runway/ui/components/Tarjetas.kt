@@ -102,11 +102,20 @@ fun TarjetaMetrica(
         )
         Spacer(Modifier.height(Espacio.xs))
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(valor, style = MaterialTheme.typography.displaySmall, color = Runway.Texto)
+            // Números largos (p. ej. "71,2 km" en una tarjeta de un tercio) bajan de tamaño para no partir la unidad
+            val largo = valor.length + unidad.length
+            val estilo = when {
+                largo > 7 -> MaterialTheme.typography.headlineSmall
+                largo > 5 -> MaterialTheme.typography.headlineMedium
+                else -> MaterialTheme.typography.displaySmall
+            }
+            Text(valor, style = estilo, color = Runway.Texto, maxLines = 1, softWrap = false)
             Text(
                 unidad,
                 style = MaterialTheme.typography.labelMedium,
                 color = Runway.TextoSecundario,
+                maxLines = 1,
+                softWrap = false,
                 modifier = Modifier.padding(bottom = 5.dp),
             )
         }

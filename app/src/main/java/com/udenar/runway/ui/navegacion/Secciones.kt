@@ -57,7 +57,10 @@ data class GrafoPlanificar(
 @Serializable data object RutaEntrenamientoActivo
 
 /** Resumen de un entrenamiento terminado. */
-@Serializable data class RutaResumenEntrenamiento(val id: String)
+@Serializable data class RutaResumenEntrenamiento(val id: String, val recienTerminado: Boolean = true)
+
+/** Historial y estadísticas. */
+@Serializable data object RutaHistorial
 
 /** Las 5 secciones de la barra inferior (especificación, sección 4). */
 enum class Seccion(val etiqueta: String, val icono: ImageVector, val ruta: Any) {

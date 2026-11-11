@@ -32,6 +32,11 @@ import com.udenar.runway.ui.entrenar.EntrenamientoActivoScreen
 import com.udenar.runway.ui.entrenar.ResumenEntrenamientoScreen
 import com.udenar.runway.ui.navegacion.RutaEntrenamientoActivo
 import com.udenar.runway.ui.navegacion.RutaResumenEntrenamiento
+import com.udenar.runway.ui.navegacion.RutaHistorial
+import com.udenar.runway.ui.historial.HistorialScreen
+import com.udenar.runway.ui.inicio.DatosInicio
+import com.udenar.runway.ui.inicio.datosInicio
+import androidx.navigation.toRoute
 import com.udenar.runway.ui.rutas.RutaGuardadaScreen
 import com.udenar.runway.ui.planificar.DetalleRutaScreen
 import com.udenar.runway.ui.planificar.PlanificadorViewModel
@@ -71,6 +76,7 @@ fun RunwayRaiz() {
 private fun Principal(nombre: String) {
     val contenedor = (LocalContext.current.applicationContext as RunwayApp).contenedor
     val sesion by contenedor.sesion.estado.collectAsStateWithLifecycle()
+    val datosInicio by remember { datosInicio(contenedor.entrenamientos) }.collectAsStateWithLifecycle(DatosInicio())
     val nav = rememberNavController()
     val entrada by nav.currentBackStackEntryAsState()
     val actual = Seccion.entries.firstOrNull { s ->
@@ -105,6 +111,9 @@ private fun Principal(nombre: String) {
                     nombre = nombre,
                     entrenamientoEnCurso = sesion.enCurso,
                     onVolverEntrenamiento = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } },
+                    datos = datosInicio,
+                    onHistorial = { nav.navigate(RutaHistorial) },
+                    onAbrirEntrenamiento = { id -> nav.navigate(RutaResumenEntrenamiento(id, recienTerminado = false)) },
                 )
             }
             composable<RutaExplorar> {
@@ -144,7 +153,17 @@ private fun Principal(nombre: String) {
                     },
                 )
             }
-            composable<RutaResumenEntrenamiento> { ResumenEntrenamientoScreen(onListo = { irA(Seccion.Inicio) }) }
+            composable<RutaResumenEntrenamiento> { entrada ->
+                val nuevo = entrada.toRoute<RutaResumenEntrenamiento>().recienTerminado
+                ResumenEntrenamientoScreen(onListo = { if (nuevo) irA(Seccion.Inicio) else nav.popBackStack() })
+            }
+            composable<RutaHistorial> {
+                HistorialScreen(
+                    onVolver = { nav.popBackStack() },
+                    onAbrir = { id -> nav.navigate(RutaResumenEntrenamiento(id, recienTerminado = false)) },
+                    onEntrenar = { irA(Seccion.Entrenar) },
+                )
+            }
             composable<RutaMisRutas> {
                 MisRutasScreen(
                     onAbrir = { id -> nav.navigate(RutaRutaGuardada(id)) },

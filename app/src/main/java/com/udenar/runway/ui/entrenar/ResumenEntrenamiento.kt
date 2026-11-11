@@ -85,6 +85,7 @@ import java.text.DateFormat
 import java.util.Date
 
 data class ResumenEstado(
+    val recienTerminado: Boolean = true,
     val entrenamiento: Entrenamiento? = null,
     val guardadaComo: Visibilidad? = null,
     val guardando: Boolean = false,
@@ -92,12 +93,13 @@ data class ResumenEstado(
 
 class ResumenViewModel(
     private val id: String,
+    recienTerminado: Boolean,
     private val entrenamientos: RepositorioEntrenamientos,
     private val rutas: RepositorioRutas,
     private val nivel: Nivel,
 ) : ViewModel() {
 
-    private val _estado = MutableStateFlow(ResumenEstado())
+    private val _estado = MutableStateFlow(ResumenEstado(recienTerminado = recienTerminado))
     val estado: StateFlow<ResumenEstado> = _estado.asStateFlow()
 
     private val _comandos = Channel<ComandoMapa>(Channel.CONFLATED)
@@ -148,8 +150,10 @@ class ResumenViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val c = (this[APPLICATION_KEY] as RunwayApp).contenedor
+                val ruta = createSavedStateHandle().toRoute<RutaResumenEntrenamiento>()
                 ResumenViewModel(
-                    createSavedStateHandle().toRoute<RutaResumenEntrenamiento>().id,
+                    ruta.id,
+                    ruta.recienTerminado,
                     c.entrenamientos,
                     c.rutas,
                     c.preferenciasPerfil.perfil.value?.nivel ?: Nivel.Intermedio,
@@ -192,7 +196,7 @@ fun ResumenEntrenamientoScreen(
         }
         Column(Modifier.padding(horizontal = Espacio.margen).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(Espacio.s)) {
             Spacer(Modifier.height(Espacio.s))
-            Text("¡Buen trabajo!", style = MaterialTheme.typography.labelLarge, color = Runway.MoradoOscuro)
+            if (e.recienTerminado) Text("¡Buen trabajo!", style = MaterialTheme.typography.labelLarge, color = Runway.MoradoOscuro)
             Text(ent.rutaNombre ?: "Carrera libre", style = MaterialTheme.typography.headlineSmall)
             Text(
                 DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.SHORT).format(Date(ent.inicioEn)),
@@ -236,7 +240,7 @@ fun ResumenEntrenamientoScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            BotonRunway("Listo", onClick = onListo, modifier = Modifier.fillMaxWidth())
+            BotonRunway(if (e.recienTerminado) "Listo" else "Volver al historial", onClick = onListo, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(Espacio.xl))
         }
     }
