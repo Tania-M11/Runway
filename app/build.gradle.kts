@@ -65,6 +65,14 @@ dependencies {
 
     implementation(libs.kotlinx.serialization.json)
 
+    // Mapa (MapLibre Native: MapView + motor de teselas vectoriales)
+    implementation(libs.maplibre.android)
+
+    // Red
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+
     testImplementation(libs.junit)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

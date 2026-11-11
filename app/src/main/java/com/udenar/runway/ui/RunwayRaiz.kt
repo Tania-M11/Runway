@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
-import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material3.Scaffold
@@ -18,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.udenar.runway.ui.explorar.ExplorarScreen
 import com.udenar.runway.ui.inicio.InicioScreen
 import com.udenar.runway.ui.navegacion.BarraInferior
 import com.udenar.runway.ui.navegacion.RutaEntrenar
@@ -63,13 +63,7 @@ fun RunwayRaiz() {
                     onMisRutas = { irA(Seccion.MisRutas) },
                 )
             }
-            composable<RutaExplorar> {
-                PantallaEnConstruccion(
-                    "Explorar",
-                    Icons.Outlined.Map,
-                    "Aquí estará el mapa de Ipiales con tu ubicación y el planificador de rutas.",
-                )
-            }
+            composable<RutaExplorar> { ExplorarScreen() }
             composable<RutaEntrenar> {
                 PantallaEnConstruccion(
                     "Entrenar",

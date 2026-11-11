@@ -1,6 +1,6 @@
 # RUNWAY
 
-App Android de running para Ipiales (Nariño): planifica recorridos con distancia objetivo, registra el entrenamiento por GPS aunque no haya internet y guarda un catálogo propio de rutas.
+App Android de running: planifica recorridos en cualquier lugar (las primeras pruebas de campo son en Ipiales, Nariño) con distancia objetivo, registra el entrenamiento por GPS aunque no haya internet y guarda un catálogo propio de rutas.
 
 Proyecto de clase sobre **integración de mapas en el desarrollo móvil**: el mapa no es solo un elemento gráfico, sino un flujo de información y control que atraviesa las capas de la arquitectura (MVVM).
 
@@ -13,6 +13,7 @@ Proyecto de clase sobre **integración de mapas en el desarrollo móvil**: el ma
 | Mapa | MapLibre Native Android (`MapView`) |
 | Teselas | OpenFreeMap (datos de OpenStreetMap, sin clave de API) |
 | Ubicación | `android.location.LocationManager` (sin Google Play Services) |
+| Buscador de lugares | Photon (geocodificador gratuito sobre OpenStreetMap) |
 | Rutas peatonales | Valhalla, servidor público `valhalla1.openstreetmap.de` |
 | Base local (offline) | Room (SQLite) |
 | Sincronización diferida | WorkManager (se ejecuta cuando vuelve la red) |
@@ -51,7 +52,7 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 |---|---|---|---|
 | 0 | Base del proyecto, dependencias, permisos y repositorio | | Hecha |
 | 1 | Sistema visual (colores, Plus Jakarta Sans, componentes) y navegación inferior | 4, Inicio vacío (5.2) | Hecha |
-| 2 | Explorar: `MapView` de Ipiales, teselas, gestos, error y reintento | 5.3 | |
+| 2 | Explorar: `MapView`, teselas, gestos, buscador de lugares de cualquier ciudad, error y reintento | 5.3 | Hecha |
 | 3 | Ubicación y configuración inicial del corredor (permisos explicados) | 5.1, 5.3 | |
 | 4 | Planificar con Valhalla: circuitos, comparación y detalle | 5.4, 5.5, 5.6 | |
 | 5 | Room: guardar y consultar Mis rutas | 5.11 | |

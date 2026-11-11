@@ -10,6 +10,9 @@ activityCompose = "1.13.0"
 composeBom = "2026.09.00"
 navigationCompose = "2.10.2"
 kotlinxSerialization = "1.12.0"
+# --- Mapas y red ---
+maplibre = "13.7.1"
+ktor = "3.6.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -28,6 +31,13 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+# Mecanismos 2, 3 y 4: contenedor MapView, motor de renderizado y control del mapa
+maplibre-android = { group = "org.maplibre.gl", name = "android-sdk", version.ref = "maplibre" }
+# Cliente HTTP (buscador de lugares; luego Valhalla y Supabase)
+ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
