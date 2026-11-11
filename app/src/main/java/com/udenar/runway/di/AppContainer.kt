@@ -2,6 +2,8 @@ package com.udenar.runway.di
 
 import android.content.Context
 import androidx.room.Room
+import com.udenar.runway.data.entrenamiento.SesionEntrenamiento
+import com.udenar.runway.data.local.RepositorioEntrenamientos
 import com.udenar.runway.data.local.RepositorioRutas
 import com.udenar.runway.data.local.RunwayDatabase
 import com.udenar.runway.data.lugares.BuscadorLugares
@@ -40,4 +42,8 @@ class AppContainer(context: Context) {
         Room.databaseBuilder(app, RunwayDatabase::class.java, "runway.db").build()
     }
     val rutas by lazy { RepositorioRutas(baseDatos.rutas()) }
+    val entrenamientos by lazy { RepositorioEntrenamientos(baseDatos.entrenamientos()) }
+
+    /** Sesión de entrenamiento única, compartida por la pantalla y el servicio en primer plano. */
+    val sesion by lazy { SesionEntrenamiento(app, ubicacion, baseDatos.entrenamientos()) }
 }

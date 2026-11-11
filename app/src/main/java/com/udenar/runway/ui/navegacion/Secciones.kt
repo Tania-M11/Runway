@@ -53,6 +53,12 @@ data class GrafoPlanificar(
 /** Detalle de una ruta de Mis rutas. */
 @Serializable data class RutaRutaGuardada(val id: String)
 
+/** Entrenamiento activo (pantalla completa, sin barra inferior). */
+@Serializable data object RutaEntrenamientoActivo
+
+/** Resumen de un entrenamiento terminado. */
+@Serializable data class RutaResumenEntrenamiento(val id: String)
+
 /** Las 5 secciones de la barra inferior (especificación, sección 4). */
 enum class Seccion(val etiqueta: String, val icono: ImageVector, val ruta: Any) {
     Inicio("Inicio", Icons.Outlined.Home, RutaInicio),

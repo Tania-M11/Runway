@@ -18,11 +18,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.udenar.runway.domain.Coordenada
 import com.udenar.runway.domain.PosicionCamara
+import com.udenar.runway.domain.distanciaKm
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.gestures.MoveGestureDetector
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
@@ -111,6 +113,8 @@ fun MapaRunway(
     onCamaraQuieta: (PosicionCamara) -> Unit = {},
     onToque: (Coordenada) -> Unit = {},
     onToqueRuta: ((String) -> Unit)? = null,
+    /** El usuario arrastró el mapa con el dedo (p. ej. para dejar de seguir su posición). */
+    onArrastre: () -> Unit = {},
     margenSuperiorBrujula: Int = 0,
 ) {
     val context = LocalContext.current
@@ -122,6 +126,7 @@ fun MapaRunway(
     val alMoverse by rememberUpdatedState(onCamaraQuieta)
     val alTocar by rememberUpdatedState(onToque)
     val alTocarRuta by rememberUpdatedState(onToqueRuta)
+    val alArrastrar by rememberUpdatedState(onArrastre)
 
     // (2) Contenedor de interfaz: la vista nativa del mapa
     val mapView = remember { MapView(context).apply { onCreate(null) } }
@@ -162,6 +167,11 @@ fun MapaRunway(
                     alMoverse(PosicionCamara(Coordenada(it.latitude, it.longitude), m.cameraPosition.zoom))
                 }
             }
+            m.addOnMoveListener(object : MapLibreMap.OnMoveListener {
+                override fun onMoveBegin(detector: MoveGestureDetector) = alArrastrar()
+                override fun onMove(detector: MoveGestureDetector) = Unit
+                override fun onMoveEnd(detector: MoveGestureDetector) = Unit
+            })
             m.addOnMapClickListener { punto ->
                 // ¿Se tocó una ruta? Se consultan las líneas dibujadas bajo el dedo (±24 px)
                 val tocarRuta = alTocarRuta
@@ -229,7 +239,17 @@ private fun ejecutar(m: MapLibreMap, comando: ComandoMapa) {
                 return
             }
             val limites = LatLngBounds.Builder().includes(distintos.map { LatLng(it.lat, it.lon) }).build()
-            m.animateCamera(CameraUpdateFactory.newLatLngBounds(limites, comando.margenPx), 800)
+            val diagonalKm = distanciaKm(
+                Coordenada(limites.latitudeSouth, limites.longitudeWest),
+                Coordenada(limites.latitudeNorth, limites.longitudeEast),
+            )
+            if (diagonalKm < 0.2) {
+                // Recorridos de pocos metros: encuadrarlos acercaría el mapa al máximo
+                val centro = limites.center
+                m.animateCamera(CameraUpdateFactory.newLatLngZoom(centro, 16.5), 700)
+            } else {
+                m.animateCamera(CameraUpdateFactory.newLatLngBounds(limites, comando.margenPx), 800)
+            }
         }
     }
 }

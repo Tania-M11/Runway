@@ -39,6 +39,13 @@ Valhalla calcula caminos entre puntos, pero no "un circuito de 5 km". `data/ruta
 3. Pide a Valhalla la ruta peatonal real (con altimetría cada 30 m) y, si se aleja más de 10 % del objetivo, escala el triángulo y repite (hasta 2 correcciones).
 4. Puntúa cada alternativa (`domain/Rutas.kt`, `Recomendador`): 50 % coincidencia de distancia, 30 % desnivel según la preferencia (m de subida por km) y 20 % continuidad (giros por km).
 
+## Registro GPS offline-first
+
+- `data/entrenamiento/SesionEntrenamiento.kt` escucha el GPS (`LocationManager`, 1 lectura/s), filtra el ruido (`FiltroGps`: precisión ≤ 25 m, ≥ 3 m entre puntos, ≤ 43 km/h) y guarda **cada punto en SQLite en el momento**, en una transacción con las métricas.
+- `ServicioEntrenamiento` es un servicio en primer plano de tipo `location`: mantiene el registro con la pantalla apagada y muestra distancia y cronómetro en la notificación.
+- Si Android cierra la app a mitad de un entrenamiento, al abrirla de nuevo se recupera desde SQLite como pausado (y si el sistema reinicia el servicio, sigue registrando).
+- La base de datos pasó a la versión 2 con una migración automática de Room: las rutas guardadas se conservan.
+
 ## Estructura
 
 ```
@@ -65,7 +72,7 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 3 | Ubicación (`LocationManager`), configuración inicial del corredor, posición en vivo y centrar en mí | 5.1, 5.3 | Hecha |
 | 4 | Planificar con Valhalla: circuitos, comparación y detalle | 5.4, 5.5, 5.6 | Hecha |
 | 5 | Room: guardar rutas (privada o reutilizable) y Mis rutas con filtros, renombrar y eliminar | 5.6, 5.11 | Hecha |
-| 6 | Entrenamiento activo con servicio en primer plano, pausa y resumen | 5.7, 5.8, 5.9 | |
+| 6 | Entrenamiento activo con servicio en primer plano, pausa, recuperación tras cierre y resumen | 5.7, 5.8, 5.9 | Hecha |
 | 7 | Historial, estadísticas e Inicio con datos reales | 5.10, 5.2 | |
 | 8 | Supabase: sesión anónima y sincronización diferida | 7 | |
 | 9 | Perfil y pruebas de campo | 5.12 | |

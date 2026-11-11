@@ -52,6 +52,8 @@ fun InicioScreen(
     onEmpezar: () -> Unit,
     onMisRutas: () -> Unit,
     nombre: String = "corredor",
+    entrenamientoEnCurso: Boolean = false,
+    onVolverEntrenamiento: () -> Unit = {},
 ) {
     Column(
         Modifier
@@ -78,7 +80,17 @@ fun InicioScreen(
             }
         }
 
-        // Acción principal
+        // Acción principal (si hay un entrenamiento abierto, lo primero es volver a él)
+        if (entrenamientoEnCurso) {
+            TarjetaDestacada(
+                titulo = "Tienes un entrenamiento en curso",
+                texto = "Sigue registrando o finalízalo para ver tu resumen.",
+                icono = Icons.AutoMirrored.Outlined.DirectionsRun,
+            ) {
+                BotonRunway("Volver al entrenamiento", onVolverEntrenamiento, estilo = EstiloBoton.Lima, modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(Modifier.height(Espacio.l))
+        }
         TarjetaDestacada(
             titulo = "¿Listo para correr?",
             texto = "Elige cuántos kilómetros quieres hacer y te proponemos recorridos por Ipiales.",

@@ -24,7 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.udenar.runway.domain.RutaReferencia
 import com.udenar.runway.ui.components.BotonRunway
+import com.udenar.runway.ui.entrenar.rememberIniciarEntrenamiento
 import com.udenar.runway.ui.components.EstiloBoton
 import com.udenar.runway.ui.components.TarjetaRunway
 import com.udenar.runway.ui.rutas.HojaGuardarRuta
@@ -34,13 +36,19 @@ import com.udenar.runway.ui.theme.Runway
 
 /** Detalle de una alternativa recién calculada (especificación 5.6), con opción de guardarla. */
 @Composable
-fun DetalleRutaScreen(vm: PlanificadorViewModel, onVolver: () -> Unit, onVerMisRutas: () -> Unit) {
+fun DetalleRutaScreen(
+    vm: PlanificadorViewModel,
+    onVolver: () -> Unit,
+    onVerMisRutas: () -> Unit,
+    onEntrenar: () -> Unit,
+) {
     val e by vm.estado.collectAsStateWithLifecycle()
     val ruta = e.rutaSeleccionada ?: run {
         LaunchedEffect(Unit) { onVolver() }
         return
     }
     var mostrarGuardar by remember { mutableStateOf(false) }
+    val iniciar = rememberIniciarEntrenamiento(onIniciado = onEntrenar)
     val guardadaComo = e.guardadas[ruta.id]
     LaunchedEffect(ruta.id) { vm.prepararDetalle() }
     // Cierra la hoja en cuanto termina de guardar
@@ -58,18 +66,11 @@ fun DetalleRutaScreen(vm: PlanificadorViewModel, onVolver: () -> Unit, onVerMisR
     ) {
         BotonRunway(
             "Iniciar entrenamiento",
-            onClick = {},
+            onClick = { iniciar(RutaReferencia(null, ruta.nombre, ruta.puntos)) },
             icono = Icons.AutoMirrored.Outlined.DirectionsRun,
-            habilitado = false,
             modifier = Modifier.fillMaxWidth(),
         )
-        Text(
-            "Iniciar entrenamientos estará disponible pronto.",
-            style = MaterialTheme.typography.bodySmall,
-            color = Runway.TextoSecundario,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(vertical = Espacio.s),
-        )
+        Spacer(Modifier.height(Espacio.s))
         if (guardadaComo == null) {
             BotonRunway(
                 "Guardar ruta",

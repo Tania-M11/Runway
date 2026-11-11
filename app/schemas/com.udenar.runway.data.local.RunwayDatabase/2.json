@@ -1,0 +1,322 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "e085d57ab3ddc83c4dc96ca740ea8b96",
+    "entities": [
+      {
+        "tableName": "rutas",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `nombre` TEXT NOT NULL, `visibilidad` TEXT NOT NULL, `modalidad` TEXT NOT NULL, `distanciaKm` REAL NOT NULL, `subidaM` REAL NOT NULL, `bajadaM` REAL NOT NULL, `trazado` TEXT NOT NULL, `elevaciones` TEXT NOT NULL, `intervaloElevacionM` REAL NOT NULL, `calles` TEXT NOT NULL, `giros` INTEGER NOT NULL, `inicioNombre` TEXT NOT NULL, `finNombre` TEXT, `creadaEn` INTEGER NOT NULL, `actualizadaEn` INTEGER NOT NULL, `pendienteSync` INTEGER NOT NULL, `eliminada` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "visibilidad",
+            "columnName": "visibilidad",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modalidad",
+            "columnName": "modalidad",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distanciaKm",
+            "columnName": "distanciaKm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subidaM",
+            "columnName": "subidaM",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bajadaM",
+            "columnName": "bajadaM",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trazado",
+            "columnName": "trazado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "elevaciones",
+            "columnName": "elevaciones",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "intervaloElevacionM",
+            "columnName": "intervaloElevacionM",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calles",
+            "columnName": "calles",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "giros",
+            "columnName": "giros",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inicioNombre",
+            "columnName": "inicioNombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finNombre",
+            "columnName": "finNombre",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "creadaEn",
+            "columnName": "creadaEn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualizadaEn",
+            "columnName": "actualizadaEn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendienteSync",
+            "columnName": "pendienteSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eliminada",
+            "columnName": "eliminada",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "entrenamientos",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `rutaId` TEXT, `rutaNombre` TEXT, `rutaTrazado` TEXT, `inicioEn` INTEGER NOT NULL, `finEn` INTEGER, `estado` TEXT NOT NULL, `distanciaM` REAL NOT NULL, `duracionMs` INTEGER NOT NULL, `tramoInicioEn` INTEGER, `segmento` INTEGER NOT NULL, `subidaM` REAL NOT NULL, `trazado` TEXT, `actualizadoEn` INTEGER NOT NULL, `pendienteSync` INTEGER NOT NULL, `eliminada` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rutaId",
+            "columnName": "rutaId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rutaNombre",
+            "columnName": "rutaNombre",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rutaTrazado",
+            "columnName": "rutaTrazado",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "inicioEn",
+            "columnName": "inicioEn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finEn",
+            "columnName": "finEn",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distanciaM",
+            "columnName": "distanciaM",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "duracionMs",
+            "columnName": "duracionMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tramoInicioEn",
+            "columnName": "tramoInicioEn",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "segmento",
+            "columnName": "segmento",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subidaM",
+            "columnName": "subidaM",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trazado",
+            "columnName": "trazado",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "actualizadoEn",
+            "columnName": "actualizadoEn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendienteSync",
+            "columnName": "pendienteSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eliminada",
+            "columnName": "eliminada",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "puntos_gps",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `entrenamientoId` TEXT NOT NULL, `segmento` INTEGER NOT NULL, `lat` REAL NOT NULL, `lon` REAL NOT NULL, `altitudM` REAL, `precisionM` REAL NOT NULL, `velocidadMs` REAL, `tiempoMs` INTEGER NOT NULL, FOREIGN KEY(`entrenamientoId`) REFERENCES `entrenamientos`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entrenamientoId",
+            "columnName": "entrenamientoId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "segmento",
+            "columnName": "segmento",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lat",
+            "columnName": "lat",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lon",
+            "columnName": "lon",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "altitudM",
+            "columnName": "altitudM",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "precisionM",
+            "columnName": "precisionM",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "velocidadMs",
+            "columnName": "velocidadMs",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "tiempoMs",
+            "columnName": "tiempoMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_puntos_gps_entrenamientoId",
+            "unique": false,
+            "columnNames": [
+              "entrenamientoId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_puntos_gps_entrenamientoId` ON `${TABLE_NAME}` (`entrenamientoId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "entrenamientos",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "entrenamientoId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e085d57ab3ddc83c4dc96ca740ea8b96')"
+    ]
+  }
+}

@@ -3,7 +3,6 @@ package com.udenar.runway.ui
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -28,6 +27,11 @@ import com.udenar.runway.ui.navegacion.RutaPlanificar
 import com.udenar.runway.ui.navegacion.RutaResultados
 import com.udenar.runway.ui.navegacion.RutaRutaGuardada
 import com.udenar.runway.ui.rutas.MisRutasScreen
+import com.udenar.runway.ui.entrenar.EntrenarScreen
+import com.udenar.runway.ui.entrenar.EntrenamientoActivoScreen
+import com.udenar.runway.ui.entrenar.ResumenEntrenamientoScreen
+import com.udenar.runway.ui.navegacion.RutaEntrenamientoActivo
+import com.udenar.runway.ui.navegacion.RutaResumenEntrenamiento
 import com.udenar.runway.ui.rutas.RutaGuardadaScreen
 import com.udenar.runway.ui.planificar.DetalleRutaScreen
 import com.udenar.runway.ui.planificar.PlanificadorViewModel
@@ -65,6 +69,8 @@ fun RunwayRaiz() {
 
 @Composable
 private fun Principal(nombre: String) {
+    val contenedor = (LocalContext.current.applicationContext as RunwayApp).contenedor
+    val sesion by contenedor.sesion.estado.collectAsStateWithLifecycle()
     val nav = rememberNavController()
     val entrada by nav.currentBackStackEntryAsState()
     val actual = Seccion.entries.firstOrNull { s ->
@@ -97,6 +103,8 @@ private fun Principal(nombre: String) {
                     onEmpezar = { irA(Seccion.Entrenar) },
                     onMisRutas = { irA(Seccion.MisRutas) },
                     nombre = nombre,
+                    entrenamientoEnCurso = sesion.enCurso,
+                    onVolverEntrenamiento = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } },
                 )
             }
             composable<RutaExplorar> {
@@ -115,23 +123,40 @@ private fun Principal(nombre: String) {
                 }
                 composable<RutaDetalleRuta> { entrada ->
                     val vm = vmPlanificador(nav, entrada)
-                    DetalleRutaScreen(vm, onVolver = { nav.popBackStack() }, onVerMisRutas = { irA(Seccion.MisRutas) })
+                    DetalleRutaScreen(
+                        vm,
+                        onVolver = { nav.popBackStack() },
+                        onVerMisRutas = { irA(Seccion.MisRutas) },
+                        onEntrenar = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } },
+                    )
                 }
             }
             composable<RutaEntrenar> {
-                PantallaEnConstruccion(
-                    "Entrenar",
-                    Icons.AutoMirrored.Outlined.DirectionsRun,
-                    "Aquí podrás iniciar, pausar y finalizar un entrenamiento con GPS, incluso sin internet.",
+                EntrenarScreen(onAbrirEntrenamiento = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } })
+            }
+            composable<RutaEntrenamientoActivo> {
+                EntrenamientoActivoScreen(
+                    onSalir = { nav.popBackStack() },
+                    onFinalizado = { id ->
+                        nav.navigate(RutaResumenEntrenamiento(id)) {
+                            popUpTo<RutaEntrenamientoActivo> { inclusive = true }
+                        }
+                    },
                 )
             }
+            composable<RutaResumenEntrenamiento> { ResumenEntrenamientoScreen(onListo = { irA(Seccion.Inicio) }) }
             composable<RutaMisRutas> {
                 MisRutasScreen(
                     onAbrir = { id -> nav.navigate(RutaRutaGuardada(id)) },
                     onPlanificar = { nav.navigate(GrafoPlanificar()) },
                 )
             }
-            composable<RutaRutaGuardada> { RutaGuardadaScreen(onVolver = { nav.popBackStack() }) }
+            composable<RutaRutaGuardada> {
+                RutaGuardadaScreen(
+                    onVolver = { nav.popBackStack() },
+                    onEntrenar = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } },
+                )
+            }
             composable<RutaPerfil> {
                 PantallaEnConstruccion(
                     "Perfil",

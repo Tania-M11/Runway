@@ -23,7 +23,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.udenar.runway.domain.RutaReferencia
 import com.udenar.runway.ui.components.BotonRunway
+import com.udenar.runway.ui.entrenar.rememberIniciarEntrenamiento
 import com.udenar.runway.ui.components.EstadoCargando
 import com.udenar.runway.ui.components.EstiloBoton
 import com.udenar.runway.ui.components.GrupoOpciones
@@ -35,11 +37,13 @@ import com.udenar.runway.ui.theme.Runway
 @Composable
 fun RutaGuardadaScreen(
     onVolver: () -> Unit,
+    onEntrenar: () -> Unit,
     vm: RutaGuardadaViewModel = viewModel(factory = RutaGuardadaViewModel.Factory),
 ) {
     val guardada by vm.ruta.collectAsStateWithLifecycle()
     var renombrando by remember { mutableStateOf(false) }
     var eliminando by remember { mutableStateOf(false) }
+    val iniciar = rememberIniciarEntrenamiento(onIniciado = onEntrenar)
 
     val g = guardada ?: run {
         EstadoCargando("Cargando ruta…", Modifier.fillMaxSize())
@@ -71,18 +75,11 @@ fun RutaGuardadaScreen(
     ) {
         BotonRunway(
             "Entrenar con esta ruta",
-            onClick = {},
+            onClick = { iniciar(RutaReferencia(g.id, g.nombre, g.puntos)) },
             icono = Icons.AutoMirrored.Outlined.DirectionsRun,
-            habilitado = false,
             modifier = Modifier.fillMaxWidth(),
         )
-        Text(
-            "Iniciar entrenamientos estará disponible pronto.",
-            style = MaterialTheme.typography.bodySmall,
-            color = Runway.TextoSecundario,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(vertical = Espacio.s),
-        )
+        Spacer(Modifier.height(Espacio.s))
         Row(horizontalArrangement = Arrangement.spacedBy(Espacio.s)) {
             BotonRunway(
                 "Renombrar",
