@@ -1,0 +1,132 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "f54e2fd9abbcb74980d9512f8fac904e",
+    "entities": [
+      {
+        "tableName": "rutas",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `nombre` TEXT NOT NULL, `visibilidad` TEXT NOT NULL, `modalidad` TEXT NOT NULL, `distanciaKm` REAL NOT NULL, `subidaM` REAL NOT NULL, `bajadaM` REAL NOT NULL, `trazado` TEXT NOT NULL, `elevaciones` TEXT NOT NULL, `intervaloElevacionM` REAL NOT NULL, `calles` TEXT NOT NULL, `giros` INTEGER NOT NULL, `inicioNombre` TEXT NOT NULL, `finNombre` TEXT, `creadaEn` INTEGER NOT NULL, `actualizadaEn` INTEGER NOT NULL, `pendienteSync` INTEGER NOT NULL, `eliminada` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "visibilidad",
+            "columnName": "visibilidad",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modalidad",
+            "columnName": "modalidad",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distanciaKm",
+            "columnName": "distanciaKm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subidaM",
+            "columnName": "subidaM",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bajadaM",
+            "columnName": "bajadaM",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trazado",
+            "columnName": "trazado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "elevaciones",
+            "columnName": "elevaciones",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "intervaloElevacionM",
+            "columnName": "intervaloElevacionM",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calles",
+            "columnName": "calles",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "giros",
+            "columnName": "giros",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inicioNombre",
+            "columnName": "inicioNombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finNombre",
+            "columnName": "finNombre",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "creadaEn",
+            "columnName": "creadaEn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualizadaEn",
+            "columnName": "actualizadaEn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendienteSync",
+            "columnName": "pendienteSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eliminada",
+            "columnName": "eliminada",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f54e2fd9abbcb74980d9512f8fac904e')"
+    ]
+  }
+}

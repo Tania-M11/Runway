@@ -64,7 +64,7 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 2 | Explorar: `MapView`, teselas, gestos, buscador de lugares de cualquier ciudad, error y reintento | 5.3 | Hecha |
 | 3 | Ubicación (`LocationManager`), configuración inicial del corredor, posición en vivo y centrar en mí | 5.1, 5.3 | Hecha |
 | 4 | Planificar con Valhalla: circuitos, comparación y detalle | 5.4, 5.5, 5.6 | Hecha |
-| 5 | Room: guardar y consultar Mis rutas | 5.11 | |
+| 5 | Room: guardar rutas (privada o reutilizable) y Mis rutas con filtros, renombrar y eliminar | 5.6, 5.11 | Hecha |
 | 6 | Entrenamiento activo con servicio en primer plano, pausa y resumen | 5.7, 5.8, 5.9 | |
 | 7 | Historial, estadísticas e Inicio con datos reales | 5.10, 5.2 | |
 | 8 | Supabase: sesión anónima y sincronización diferida | 7 | |

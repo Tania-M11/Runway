@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.toRoute
 import com.udenar.runway.RunwayApp
+import com.udenar.runway.data.local.RepositorioRutas
 import com.udenar.runway.data.lugares.BuscadorLugares
 import com.udenar.runway.data.preferencias.PreferenciasPerfil
 import com.udenar.runway.data.preferencias.PreferenciasPlan
@@ -22,6 +23,7 @@ import com.udenar.runway.domain.ParametrosRuta
 import com.udenar.runway.domain.PreferenciaDesnivel
 import com.udenar.runway.domain.Recomendador
 import com.udenar.runway.domain.RutaCandidata
+import com.udenar.runway.domain.Visibilidad
 import com.udenar.runway.ui.mapa.ComandoMapa
 import com.udenar.runway.ui.navegacion.GrafoPlanificar
 import kotlinx.coroutines.Job
@@ -73,6 +75,9 @@ data class PlanificadorEstado(
     val seleccionada: String? = null,
     /** Nombre del final de una ruta lineal (se busca al abrir el detalle). */
     val nombreFin: String? = null,
+    /** Alternativas ya guardadas en Mis rutas: id de la alternativa → id guardado. */
+    val guardadas: Map<String, Visibilidad> = emptyMap(),
+    val guardando: Boolean = false,
 ) {
     val puedeBuscar: Boolean get() = inicio != null && calculo !is EstadoCalculo.Calculando
     val rutaSeleccionada: RutaCandidata? get() = rutas.firstOrNull { it.id == seleccionada }
@@ -93,6 +98,7 @@ class PlanificadorViewModel(
     private val ubicacion: RepositorioUbicacion,
     private val buscador: BuscadorLugares,
     private val planificador: PlanificadorRutas,
+    private val rutasGuardadas: RepositorioRutas,
 ) : ViewModel() {
 
     private val puntoRecibido: Lugar? = argumentos.lugar()
@@ -249,6 +255,24 @@ class PlanificadorViewModel(
         }
     }
 
+    /** Guarda la alternativa seleccionada en el catálogo local (flujo 6.3). */
+    fun guardarRuta(nombre: String, visibilidad: Visibilidad) {
+        val e = _estado.value
+        val ruta = e.rutaSeleccionada ?: return
+        if (e.guardando) return
+        _estado.update { it.copy(guardando = true) }
+        viewModelScope.launch {
+            rutasGuardadas.guardar(
+                ruta = ruta,
+                nombre = nombre,
+                visibilidad = visibilidad,
+                inicioNombre = e.inicio?.nombre ?: ruta.inicio.texto(),
+                finNombre = if (ruta.modalidad == Modalidad.Lineal) e.nombreFin else null,
+            )
+            _estado.update { it.copy(guardando = false, guardadas = it.guardadas + (ruta.id to visibilidad)) }
+        }
+    }
+
     fun encuadrarTodas() {
         val rutas = _estado.value.rutas
         if (rutas.isNotEmpty()) _comandos.trySend(ComandoMapa.Encuadrar(rutas.flatMap { it.puntos }))
@@ -259,7 +283,9 @@ class PlanificadorViewModel(
             initializer {
                 val c = (this[APPLICATION_KEY] as RunwayApp).contenedor
                 val argumentos = createSavedStateHandle().toRoute<GrafoPlanificar>()
-                PlanificadorViewModel(argumentos, c.preferenciasPerfil, c.preferenciasPlan, c.ubicacion, c.buscadorLugares, c.planificador)
+                PlanificadorViewModel(
+                    argumentos, c.preferenciasPerfil, c.preferenciasPlan, c.ubicacion, c.buscadorLugares, c.planificador, c.rutas,
+                )
             }
         }
     }

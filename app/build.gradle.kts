@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.room)
 }
 
 // Claves de Supabase: se leen de local.properties (que NO se sube a GitHub)
@@ -46,6 +48,11 @@ android {
     }
 }
 
+room {
+    // Esquemas de la base de datos versionados en git (permiten migraciones automáticas)
+    schemaDirectory("$projectDir/schemas")
+}
+
 dependencies {
     // AndroidX + ciclo de vida (ViewModel = capa de presentación del MVVM)
     implementation(libs.androidx.core.ktx)
@@ -67,6 +74,11 @@ dependencies {
 
     // Mapa (MapLibre Native: MapView + motor de teselas vectoriales)
     implementation(libs.maplibre.android)
+
+    // Base de datos local
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 
     // Red
     implementation(libs.ktor.client.okhttp)

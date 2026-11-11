@@ -1,6 +1,9 @@
 package com.udenar.runway.di
 
 import android.content.Context
+import androidx.room.Room
+import com.udenar.runway.data.local.RepositorioRutas
+import com.udenar.runway.data.local.RunwayDatabase
 import com.udenar.runway.data.lugares.BuscadorLugares
 import com.udenar.runway.data.preferencias.PreferenciasMapa
 import com.udenar.runway.data.preferencias.PreferenciasPerfil
@@ -18,7 +21,7 @@ import com.udenar.runway.data.ubicacion.RepositorioUbicacion
  * ViewModel (capa de presentación). Así ninguna pantalla habla directo con el GPS,
  * con los servicios de mapas ni con la base de datos: todo pasa por esta capa.
  *
- * Pendiente por partes: Room (5) y Supabase (8).
+ * Pendiente: Supabase (parte 8).
  */
 class AppContainer(context: Context) {
     private val app = context.applicationContext
@@ -31,4 +34,10 @@ class AppContainer(context: Context) {
     val ubicacion by lazy { RepositorioUbicacion(app) }
     val preferenciasPlan by lazy { PreferenciasPlan(app) }
     val planificador by lazy { PlanificadorRutas(ClienteValhalla(http)) }
+
+    // Base de datos SQLite local (Room)
+    private val baseDatos by lazy {
+        Room.databaseBuilder(app, RunwayDatabase::class.java, "runway.db").build()
+    }
+    val rutas by lazy { RepositorioRutas(baseDatos.rutas()) }
 }

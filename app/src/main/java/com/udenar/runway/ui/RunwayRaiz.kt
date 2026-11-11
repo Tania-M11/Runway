@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,6 +26,9 @@ import com.udenar.runway.ui.navegacion.GrafoPlanificar
 import com.udenar.runway.ui.navegacion.RutaDetalleRuta
 import com.udenar.runway.ui.navegacion.RutaPlanificar
 import com.udenar.runway.ui.navegacion.RutaResultados
+import com.udenar.runway.ui.navegacion.RutaRutaGuardada
+import com.udenar.runway.ui.rutas.MisRutasScreen
+import com.udenar.runway.ui.rutas.RutaGuardadaScreen
 import com.udenar.runway.ui.planificar.DetalleRutaScreen
 import com.udenar.runway.ui.planificar.PlanificadorViewModel
 import com.udenar.runway.ui.planificar.PlanificarScreen
@@ -113,7 +115,7 @@ private fun Principal(nombre: String) {
                 }
                 composable<RutaDetalleRuta> { entrada ->
                     val vm = vmPlanificador(nav, entrada)
-                    DetalleRutaScreen(vm, onVolver = { nav.popBackStack() })
+                    DetalleRutaScreen(vm, onVolver = { nav.popBackStack() }, onVerMisRutas = { irA(Seccion.MisRutas) })
                 }
             }
             composable<RutaEntrenar> {
@@ -124,12 +126,12 @@ private fun Principal(nombre: String) {
                 )
             }
             composable<RutaMisRutas> {
-                PantallaEnConstruccion(
-                    "Mis rutas",
-                    Icons.Outlined.Route,
-                    "Aquí verás tus rutas privadas y reutilizables.",
+                MisRutasScreen(
+                    onAbrir = { id -> nav.navigate(RutaRutaGuardada(id)) },
+                    onPlanificar = { nav.navigate(GrafoPlanificar()) },
                 )
             }
+            composable<RutaRutaGuardada> { RutaGuardadaScreen(onVolver = { nav.popBackStack() }) }
             composable<RutaPerfil> {
                 PantallaEnConstruccion(
                     "Perfil",
