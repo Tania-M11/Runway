@@ -1,6 +1,7 @@
 package com.udenar.runway.ui.mapa
 
 import android.graphics.Color
+import android.graphics.RectF
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -18,22 +19,34 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.udenar.runway.domain.Coordenada
 import com.udenar.runway.domain.PosicionCamara
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.OnMapReadyCallback
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.circleColor
 import org.maplibre.android.style.layers.PropertyFactory.circleOpacity
 import org.maplibre.android.style.layers.PropertyFactory.circleRadius
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
+import org.maplibre.android.style.layers.PropertyFactory.lineCap
+import org.maplibre.android.style.layers.PropertyFactory.lineColor
+import org.maplibre.android.style.layers.PropertyFactory.lineJoin
+import org.maplibre.android.style.layers.PropertyFactory.lineOpacity
+import org.maplibre.android.style.layers.PropertyFactory.lineSortKey
+import org.maplibre.android.style.layers.PropertyFactory.lineWidth
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
 /**
@@ -45,13 +58,28 @@ const val ESTILO_MAPA = "https://tiles.openfreemap.org/styles/liberty"
 /** Órdenes que la capa de presentación (ViewModel) envía al mapa. */
 sealed interface ComandoMapa {
     data class MoverCamara(val destino: Coordenada, val zoom: Double) : ComandoMapa
+    /** Ajusta la cámara para que se vean todos los puntos (p. ej. una ruta completa). */
+    data class Encuadrar(val puntos: List<Coordenada>, val margenPx: Int = 120) : ComandoMapa
 }
+
+/** Una línea a dibujar sobre el mapa (alternativa de ruta o trazado GPS). */
+data class TrazoRuta(
+    val id: String,
+    val puntos: List<Coordenada>,
+    val colorHex: String,
+    val seleccionada: Boolean,
+)
 
 private const val FUENTE_PUNTO = "punto-seleccionado"
 private const val CAPA_PUNTO = "punto-seleccionado-capa"
 private const val FUENTE_YO = "mi-ubicacion"
 private const val CAPA_YO_HALO = "mi-ubicacion-halo"
 private const val CAPA_YO = "mi-ubicacion-punto"
+private const val FUENTE_RUTAS = "rutas"
+private const val CAPA_RUTAS_BORDE = "rutas-borde"
+private const val CAPA_RUTAS = "rutas-linea"
+private const val FUENTE_FIN = "fin-ruta"
+private const val CAPA_FIN = "fin-ruta-capa"
 
 /**
  * Integración del mapa en Compose (mecanismos 2, 3 y 4 del tema de clase).
@@ -71,15 +99,18 @@ private const val CAPA_YO = "mi-ubicacion-punto"
 @Composable
 fun MapaRunway(
     camaraInicial: PosicionCamara,
-    puntoSeleccionado: Coordenada?,
-    miPosicion: Coordenada?,
-    comandos: Flow<ComandoMapa>,
-    intentoCarga: Int,
-    onEstiloCargado: () -> Unit,
-    onErrorCarga: (String?) -> Unit,
-    onCamaraQuieta: (PosicionCamara) -> Unit,
-    onToque: (Coordenada) -> Unit,
     modifier: Modifier = Modifier,
+    puntoSeleccionado: Coordenada? = null,
+    miPosicion: Coordenada? = null,
+    rutas: List<TrazoRuta> = emptyList(),
+    finRuta: Coordenada? = null,
+    comandos: Flow<ComandoMapa> = emptyFlow(),
+    intentoCarga: Int = 0,
+    onEstiloCargado: () -> Unit = {},
+    onErrorCarga: (String?) -> Unit = {},
+    onCamaraQuieta: (PosicionCamara) -> Unit = {},
+    onToque: (Coordenada) -> Unit = {},
+    onToqueRuta: ((String) -> Unit)? = null,
     margenSuperiorBrujula: Int = 0,
 ) {
     val context = LocalContext.current
@@ -90,6 +121,7 @@ fun MapaRunway(
     val alFallar by rememberUpdatedState(onErrorCarga)
     val alMoverse by rememberUpdatedState(onCamaraQuieta)
     val alTocar by rememberUpdatedState(onToque)
+    val alTocarRuta by rememberUpdatedState(onToqueRuta)
 
     // (2) Contenedor de interfaz: la vista nativa del mapa
     val mapView = remember { MapView(context).apply { onCreate(null) } }
@@ -131,6 +163,17 @@ fun MapaRunway(
                 }
             }
             m.addOnMapClickListener { punto ->
+                // ¿Se tocó una ruta? Se consultan las líneas dibujadas bajo el dedo (±24 px)
+                val tocarRuta = alTocarRuta
+                if (tocarRuta != null) {
+                    val p = m.projection.toScreenLocation(punto)
+                    val zona = RectF(p.x - 24, p.y - 24, p.x + 24, p.y + 24)
+                    val id = m.queryRenderedFeatures(zona, CAPA_RUTAS).firstNotNullOfOrNull { it.getStringProperty("id") }
+                    if (id != null) {
+                        tocarRuta(id)
+                        return@addOnMapClickListener true
+                    }
+                }
                 alTocar(Coordenada(punto.latitude, punto.longitude))
                 true
             }
@@ -150,38 +193,87 @@ fun MapaRunway(
         }
     }
 
-    // Capa del punto seleccionado (GeoJSON + círculo morado)
     LaunchedEffect(estilo, puntoSeleccionado) {
         estilo?.getSourceAs<GeoJsonSource>(FUENTE_PUNTO)?.setGeoJson(geojsonDe(puntoSeleccionado))
     }
-
-    // Capa de la posición del usuario (viene del GPS a través del ViewModel)
+    LaunchedEffect(estilo, finRuta) {
+        estilo?.getSourceAs<GeoJsonSource>(FUENTE_FIN)?.setGeoJson(geojsonDe(finRuta))
+    }
     LaunchedEffect(estilo, miPosicion) {
         estilo?.getSourceAs<GeoJsonSource>(FUENTE_YO)?.setGeoJson(geojsonDe(miPosicion))
     }
+    LaunchedEffect(estilo, rutas) {
+        estilo?.getSourceAs<GeoJsonSource>(FUENTE_RUTAS)?.setGeoJson(geojsonDeRutas(rutas))
+    }
 
-    // Órdenes del ViewModel → controlador del mapa
-    LaunchedEffect(mapa) {
+    // Órdenes del ViewModel → controlador del mapa (esperan a que el estilo esté listo)
+    LaunchedEffect(mapa, estilo != null) {
         val m = mapa ?: return@LaunchedEffect
-        comandos.collect { comando ->
-            when (comando) {
-                is ComandoMapa.MoverCamara -> m.animateCamera(
-                    CameraUpdateFactory.newLatLngZoom(LatLng(comando.destino.lat, comando.destino.lon), comando.zoom),
-                    900,
-                )
-            }
-        }
+        if (estilo == null) return@LaunchedEffect
+        comandos.collect { comando -> ejecutar(m, comando) }
     }
 
     AndroidView(factory = { mapView }, modifier = modifier)
+}
+
+private fun ejecutar(m: MapLibreMap, comando: ComandoMapa) {
+    when (comando) {
+        is ComandoMapa.MoverCamara -> m.animateCamera(
+            CameraUpdateFactory.newLatLngZoom(LatLng(comando.destino.lat, comando.destino.lon), comando.zoom),
+            900,
+        )
+        is ComandoMapa.Encuadrar -> {
+            val distintos = comando.puntos.distinct()
+            if (distintos.size < 2) {
+                distintos.firstOrNull()?.let { m.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(it.lat, it.lon), 15.0), 700) }
+                return
+            }
+            val limites = LatLngBounds.Builder().includes(distintos.map { LatLng(it.lat, it.lon) }).build()
+            m.animateCamera(CameraUpdateFactory.newLatLngBounds(limites, comando.margenPx), 800)
+        }
+    }
 }
 
 private fun geojsonDe(c: Coordenada?): FeatureCollection = FeatureCollection.fromFeatures(
     listOfNotNull(c?.let { Feature.fromGeometry(Point.fromLngLat(it.lon, it.lat)) }),
 )
 
-/** Capas propias sobre el mapa base: primero la posición del usuario, encima el punto elegido. */
+/** La seleccionada va al final y con mayor orden para dibujarse encima de las demás. */
+private fun geojsonDeRutas(rutas: List<TrazoRuta>): FeatureCollection = FeatureCollection.fromFeatures(
+    rutas.sortedBy { it.seleccionada }.map { r ->
+        Feature.fromGeometry(LineString.fromLngLats(r.puntos.map { Point.fromLngLat(it.lon, it.lat) })).apply {
+            addStringProperty("id", r.id)
+            addStringProperty("color", r.colorHex)
+            addBooleanProperty("sel", r.seleccionada)
+            addNumberProperty("orden", if (r.seleccionada) 1 else 0)
+        }
+    },
+)
+
+/** Capas propias sobre el mapa base, de abajo hacia arriba: rutas, usuario, fin y punto de inicio. */
 private fun prepararCapas(estilo: Style) {
+    val seleccionada = Expression.toBool(Expression.get("sel"))
+    estilo.addSource(GeoJsonSource(FUENTE_RUTAS))
+    // Borde blanco solo en la ruta seleccionada, para resaltarla (especificación 5.5)
+    estilo.addLayer(
+        LineLayer(CAPA_RUTAS_BORDE, FUENTE_RUTAS).withProperties(
+            lineColor(Color.WHITE),
+            lineWidth(11f),
+            lineCap(Property.LINE_CAP_ROUND),
+            lineJoin(Property.LINE_JOIN_ROUND),
+        ).withFilter(seleccionada),
+    )
+    estilo.addLayer(
+        LineLayer(CAPA_RUTAS, FUENTE_RUTAS).withProperties(
+            lineColor(Expression.toColor(Expression.get("color"))),
+            lineWidth(Expression.switchCase(seleccionada, Expression.literal(6f), Expression.literal(4f))),
+            lineOpacity(Expression.switchCase(seleccionada, Expression.literal(1f), Expression.literal(0.5f))),
+            lineSortKey(Expression.get("orden")),
+            lineCap(Property.LINE_CAP_ROUND),
+            lineJoin(Property.LINE_JOIN_ROUND),
+        ),
+    )
+
     estilo.addSource(GeoJsonSource(FUENTE_YO))
     estilo.addLayer(
         CircleLayer(CAPA_YO_HALO, FUENTE_YO).withProperties(
@@ -198,6 +290,19 @@ private fun prepararCapas(estilo: Style) {
             circleStrokeColor(Color.WHITE),
         ),
     )
+
+    // Final de una ruta lineal: punto oscuro con borde blanco
+    estilo.addSource(GeoJsonSource(FUENTE_FIN))
+    estilo.addLayer(
+        CircleLayer(CAPA_FIN, FUENTE_FIN).withProperties(
+            circleRadius(9f),
+            circleColor(Color.parseColor("#172033")),
+            circleStrokeWidth(4f),
+            circleStrokeColor(Color.WHITE),
+        ),
+    )
+
+    // Punto elegido / inicio de ruta: lima con borde oscuro
     estilo.addSource(GeoJsonSource(FUENTE_PUNTO))
     estilo.addLayer(
         CircleLayer(CAPA_PUNTO, FUENTE_PUNTO).withProperties(

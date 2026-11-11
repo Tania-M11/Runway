@@ -7,6 +7,8 @@ import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.udenar.runway.domain.Coordenada
+import com.udenar.runway.domain.Lugar
 import kotlinx.serialization.Serializable
 
 /** Rutas de navegación con tipos (navigation-compose). */
@@ -15,6 +17,38 @@ import kotlinx.serialization.Serializable
 @Serializable data object RutaEntrenar
 @Serializable data object RutaMisRutas
 @Serializable data object RutaPerfil
+
+/**
+ * Grafo del planificador (Planificar → Resultados → Detalle). Recibe opcionalmente
+ * el punto de inicio elegido en el mapa. Las coordenadas viajan como texto porque la
+ * navegación no admite Double nulos.
+ */
+@Serializable
+data class GrafoPlanificar(
+    val lat: String? = null,
+    val lon: String? = null,
+    val nombre: String? = null,
+    val detalle: String? = null,
+) {
+    fun lugar(): Lugar? {
+        val la = lat?.toDoubleOrNull() ?: return null
+        val lo = lon?.toDoubleOrNull() ?: return null
+        return Lugar(nombre ?: "Punto del mapa", detalle.orEmpty(), Coordenada(la, lo))
+    }
+
+    companion object {
+        fun desde(lugar: Lugar?) = if (lugar == null) GrafoPlanificar() else GrafoPlanificar(
+            lugar.coordenada.lat.toString(),
+            lugar.coordenada.lon.toString(),
+            lugar.nombre,
+            lugar.detalle,
+        )
+    }
+}
+
+@Serializable data object RutaPlanificar
+@Serializable data object RutaResultados
+@Serializable data object RutaDetalleRuta
 
 /** Las 5 secciones de la barra inferior (especificación, sección 4). */
 enum class Seccion(val etiqueta: String, val icono: ImageVector, val ruta: Any) {

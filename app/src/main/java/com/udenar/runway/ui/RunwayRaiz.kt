@@ -17,7 +17,20 @@ import com.udenar.runway.ui.configuracion.ConfiguracionInicialScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.navigation
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.remember
+import com.udenar.runway.ui.navegacion.GrafoPlanificar
+import com.udenar.runway.ui.navegacion.RutaDetalleRuta
+import com.udenar.runway.ui.navegacion.RutaPlanificar
+import com.udenar.runway.ui.navegacion.RutaResultados
+import com.udenar.runway.ui.planificar.DetalleRutaScreen
+import com.udenar.runway.ui.planificar.PlanificadorViewModel
+import com.udenar.runway.ui.planificar.PlanificarScreen
+import com.udenar.runway.ui.planificar.ResultadosScreen
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -68,7 +81,8 @@ private fun Principal(nombre: String) {
         containerColor = Runway.Fondo,
         // Cada pantalla maneja la barra de estado (el mapa irá de borde a borde)
         contentWindowInsets = WindowInsets(0),
-        bottomBar = { BarraInferior(actual = actual, onSeleccion = ::irA) },
+        // La barra solo se ve en las 5 secciones principales, no en pantallas internas
+        bottomBar = { if (actual != null) BarraInferior(actual = actual, onSeleccion = ::irA) },
     ) { relleno ->
         NavHost(
             navController = nav,
@@ -77,13 +91,31 @@ private fun Principal(nombre: String) {
         ) {
             composable<RutaInicio> {
                 InicioScreen(
-                    onPlanificar = { irA(Seccion.Explorar) },
+                    onPlanificar = { nav.navigate(GrafoPlanificar()) },
                     onEmpezar = { irA(Seccion.Entrenar) },
                     onMisRutas = { irA(Seccion.MisRutas) },
                     nombre = nombre,
                 )
             }
-            composable<RutaExplorar> { ExplorarScreen() }
+            composable<RutaExplorar> {
+                ExplorarScreen(onPlanificar = { lugar -> nav.navigate(GrafoPlanificar.desde(lugar)) })
+            }
+
+            // Planificar → Resultados → Detalle comparten un ViewModel del grafo
+            navigation<GrafoPlanificar>(startDestination = RutaPlanificar) {
+                composable<RutaPlanificar> { entrada ->
+                    val vm = vmPlanificador(nav, entrada)
+                    PlanificarScreen(vm, onVolver = { nav.popBackStack() }, onBuscar = { nav.navigate(RutaResultados) })
+                }
+                composable<RutaResultados> { entrada ->
+                    val vm = vmPlanificador(nav, entrada)
+                    ResultadosScreen(vm, onVolver = { nav.popBackStack() }, onDetalle = { nav.navigate(RutaDetalleRuta) })
+                }
+                composable<RutaDetalleRuta> { entrada ->
+                    val vm = vmPlanificador(nav, entrada)
+                    DetalleRutaScreen(vm, onVolver = { nav.popBackStack() })
+                }
+            }
             composable<RutaEntrenar> {
                 PantallaEnConstruccion(
                     "Entrenar",
@@ -107,4 +139,10 @@ private fun Principal(nombre: String) {
             }
         }
     }
+}
+
+@Composable
+private fun vmPlanificador(nav: NavHostController, entrada: NavBackStackEntry): PlanificadorViewModel {
+    val grafo = remember(entrada) { nav.getBackStackEntry<GrafoPlanificar>() }
+    return viewModel(grafo, factory = PlanificadorViewModel.Factory)
 }

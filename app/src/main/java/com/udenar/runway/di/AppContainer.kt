@@ -4,8 +4,11 @@ import android.content.Context
 import com.udenar.runway.data.lugares.BuscadorLugares
 import com.udenar.runway.data.preferencias.PreferenciasMapa
 import com.udenar.runway.data.preferencias.PreferenciasPerfil
+import com.udenar.runway.data.preferencias.PreferenciasPlan
 import com.udenar.runway.data.red.MonitorConexion
 import com.udenar.runway.data.red.crearClienteHttp
+import com.udenar.runway.data.rutas.ClienteValhalla
+import com.udenar.runway.data.rutas.PlanificadorRutas
 import com.udenar.runway.data.ubicacion.RepositorioUbicacion
 
 /**
@@ -15,7 +18,7 @@ import com.udenar.runway.data.ubicacion.RepositorioUbicacion
  * ViewModel (capa de presentación). Así ninguna pantalla habla directo con el GPS,
  * con los servicios de mapas ni con la base de datos: todo pasa por esta capa.
  *
- * Pendiente por partes: Valhalla (4), Room (5) y Supabase (8).
+ * Pendiente por partes: Room (5) y Supabase (8).
  */
 class AppContainer(context: Context) {
     private val app = context.applicationContext
@@ -26,4 +29,6 @@ class AppContainer(context: Context) {
     val preferenciasPerfil by lazy { PreferenciasPerfil(app) }
     val buscadorLugares by lazy { BuscadorLugares(http) }
     val ubicacion by lazy { RepositorioUbicacion(app) }
+    val preferenciasPlan by lazy { PreferenciasPlan(app) }
+    val planificador by lazy { PlanificadorRutas(ClienteValhalla(http)) }
 }

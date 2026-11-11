@@ -5,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,8 +28,8 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.LocationSearching
 import androidx.compose.material.icons.outlined.MyLocation
+import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,9 +55,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.udenar.runway.domain.Lugar
 import com.udenar.runway.ui.components.AvisoEstado
 import com.udenar.runway.ui.components.BotonCircular
+import com.udenar.runway.ui.components.BotonRunway
+import com.udenar.runway.ui.components.EstiloBoton
 import com.udenar.runway.ui.components.BarraBusqueda
 import com.udenar.runway.ui.components.EstadoCargando
 import com.udenar.runway.ui.components.EstadoVacio
+import com.udenar.runway.ui.components.FilaLugar
 import com.udenar.runway.ui.components.TarjetaRunway
 import com.udenar.runway.ui.components.TipoAviso
 import com.udenar.runway.ui.mapa.MapaRunway
@@ -69,7 +72,10 @@ import com.udenar.runway.ui.ubicacion.rememberPedirPermisoUbicacion
 
 /** Explorar (especificación 5.3): mapa de cualquier lugar, buscador y punto seleccionado. */
 @Composable
-fun ExplorarScreen(vm: ExplorarViewModel = viewModel(factory = ExplorarViewModel.Factory)) {
+fun ExplorarScreen(
+    onPlanificar: (Lugar?) -> Unit,
+    vm: ExplorarViewModel = viewModel(factory = ExplorarViewModel.Factory),
+) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     val foco = LocalFocusManager.current
     val densidad = LocalDensity.current
@@ -183,23 +189,39 @@ fun ExplorarScreen(vm: ExplorarViewModel = viewModel(factory = ExplorarViewModel
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(start = Espacio.l, end = Espacio.l, bottom = 40.dp),
-            horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(Espacio.m),
         ) {
-            BotonCircular(
-                icono = if (estado.permisoUbicacion) Icons.Outlined.MyLocation else Icons.Outlined.LocationSearching,
-                descripcion = "Centrar en mi ubicación",
-                onClick = onCentrar,
-                tamano = 52.dp,
-                sombra = 6.dp,
-                colorIcono = Runway.MoradoOscuro,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                // Acceso al planificador (especificación 5.3)
+                if (estado.seleccionado == null) {
+                    Surface(shape = RoundedCornerShape(50), shadowElevation = 6.dp, color = Runway.Lima) {
+                        BotonRunway(
+                            "Planificar ruta",
+                            onClick = { onPlanificar(null) },
+                            estilo = EstiloBoton.Lima,
+                            icono = Icons.Outlined.Route,
+                            alto = 52.dp,
+                        )
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                BotonCircular(
+                    icono = if (estado.permisoUbicacion) Icons.Outlined.MyLocation else Icons.Outlined.LocationSearching,
+                    descripcion = "Centrar en mi ubicación",
+                    onClick = onCentrar,
+                    tamano = 52.dp,
+                    sombra = 6.dp,
+                    colorIcono = Runway.MoradoOscuro,
+                )
+            }
             AnimatedVisibility(
                 visible = estado.seleccionado != null,
                 enter = slideInVertically { it } + fadeIn(),
                 exit = slideOutVertically { it } + fadeOut(),
             ) {
-                estado.seleccionado?.let { TarjetaLugar(it, onCerrar = vm::quitarSeleccion) }
+                estado.seleccionado?.let { lugar ->
+                    TarjetaLugar(lugar, onCerrar = vm::quitarSeleccion, onPlanificar = { onPlanificar(lugar) })
+                }
             }
         }
     }
@@ -243,33 +265,7 @@ private fun PanelResultados(estado: ExplorarEstado, onElegir: (Lugar) -> Unit) {
 }
 
 @Composable
-private fun FilaLugar(lugar: Lugar, onClick: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = Espacio.l, vertical = Espacio.m),
-    ) {
-        Icon(Icons.Outlined.Place, null, tint = Runway.Morado, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(Espacio.l))
-        Column {
-            Text(lugar.nombre, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (lugar.detalle.isNotBlank()) {
-                Text(
-                    lugar.detalle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Runway.TextoSecundario,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TarjetaLugar(lugar: Lugar, onCerrar: () -> Unit) {
+private fun TarjetaLugar(lugar: Lugar, onCerrar: () -> Unit, onPlanificar: () -> Unit) {
     TarjetaRunway(modifier = Modifier.fillMaxWidth(), relleno = Espacio.l) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(Espacio.radioPequeno), color = Runway.LavandaClaro, modifier = Modifier.size(48.dp)) {
@@ -290,5 +286,13 @@ private fun TarjetaLugar(lugar: Lugar, onCerrar: () -> Unit) {
                 Icon(Icons.Outlined.Close, contentDescription = "Quitar punto", tint = Runway.TextoSecundario)
             }
         }
+        Spacer(Modifier.height(Espacio.m))
+        BotonRunway(
+            "Planificar desde aquí",
+            onClick = onPlanificar,
+            icono = Icons.Outlined.Route,
+            modifier = Modifier.fillMaxWidth(),
+            alto = 48.dp,
+        )
     }
 }
