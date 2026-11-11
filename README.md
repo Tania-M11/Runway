@@ -45,18 +45,20 @@ com.udenar.runway
 
 ## Plan de desarrollo por partes
 
-| # | Parte | Estado |
-|---|---|---|
-| 0 | Base del proyecto, dependencias, permisos y repositorio | Hecha |
-| 1 | Mapa de Ipiales: `MapView`, teselas, gestos, atribución | |
-| 2 | Ubicación: permisos, posición en vivo, centrar en mí | |
-| 3 | Valhalla: ruta A→B tocando el mapa y polilínea | |
-| 4 | Planificador: distancia, modalidad y nivel; circuitos y alternativas | |
-| 5 | Room: catálogo de rutas privadas y reutilizables | |
-| 6 | Entrenamiento: servicio en primer plano con GPS guardado en Room | |
-| 7 | Historial y estadísticas | |
-| 8 | Supabase: cuentas y sincronización diferida | |
-| 9 | Cierre y pruebas de campo | |
+Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_RUNWAY.docx`): morado `#7668E8`, lima `#D5F36A`, tarjetas redondeadas y barra inferior con Inicio, Explorar, Entrenar, Mis rutas y Perfil.
+
+| # | Parte | Pantallas de la especificación | Estado |
+|---|---|---|---|
+| 0 | Base del proyecto, dependencias, permisos y repositorio | | Hecha |
+| 1 | Sistema visual (colores, Plus Jakarta Sans, componentes) y navegación inferior | 4, Inicio vacío (5.2) | Hecha |
+| 2 | Explorar: `MapView` de Ipiales, teselas, gestos, error y reintento | 5.3 | |
+| 3 | Ubicación y configuración inicial del corredor (permisos explicados) | 5.1, 5.3 | |
+| 4 | Planificar con Valhalla: circuitos, comparación y detalle | 5.4, 5.5, 5.6 | |
+| 5 | Room: guardar y consultar Mis rutas | 5.11 | |
+| 6 | Entrenamiento activo con servicio en primer plano, pausa y resumen | 5.7, 5.8, 5.9 | |
+| 7 | Historial, estadísticas e Inicio con datos reales | 5.10, 5.2 | |
+| 8 | Supabase: sesión anónima y sincronización diferida | 7 | |
+| 9 | Perfil y pruebas de campo | 5.12 | |
 
 ## Compilar
 
