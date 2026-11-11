@@ -73,7 +73,7 @@ fun InicioScreen(
             }
             Spacer(Modifier.width(Espacio.m))
             Column {
-                Text("Bienvenido", style = MaterialTheme.typography.labelMedium, color = Runway.TextoSecundario)
+                Text("Hoy es un buen día para correr", style = MaterialTheme.typography.labelMedium, color = Runway.TextoSecundario)
                 Text("Hola, $nombre", style = MaterialTheme.typography.titleLarge)
             }
         }

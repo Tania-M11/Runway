@@ -10,6 +10,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.udenar.runway.RunwayApp
+import com.udenar.runway.ui.configuracion.ConfiguracionInicialScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -28,9 +32,24 @@ import com.udenar.runway.ui.navegacion.RutaPerfil
 import com.udenar.runway.ui.navegacion.Seccion
 import com.udenar.runway.ui.theme.Runway
 
-/** Raíz de la interfaz: barra inferior + grafo de navegación de las 5 secciones. */
+/**
+ * Raíz de la interfaz. Sin perfil guardado muestra la configuración inicial (5.1);
+ * con perfil, la barra inferior y las 5 secciones.
+ */
 @Composable
 fun RunwayRaiz() {
+    val contenedor = (LocalContext.current.applicationContext as RunwayApp).contenedor
+    val perfil by contenedor.preferenciasPerfil.perfil.collectAsStateWithLifecycle()
+    val actual = perfil
+    if (actual == null) {
+        ConfiguracionInicialScreen()
+    } else {
+        Principal(nombre = actual.nombre)
+    }
+}
+
+@Composable
+private fun Principal(nombre: String) {
     val nav = rememberNavController()
     val entrada by nav.currentBackStackEntryAsState()
     val actual = Seccion.entries.firstOrNull { s ->
@@ -61,6 +80,7 @@ fun RunwayRaiz() {
                     onPlanificar = { irA(Seccion.Explorar) },
                     onEmpezar = { irA(Seccion.Entrenar) },
                     onMisRutas = { irA(Seccion.MisRutas) },
+                    nombre = nombre,
                 )
             }
             composable<RutaExplorar> { ExplorarScreen() }

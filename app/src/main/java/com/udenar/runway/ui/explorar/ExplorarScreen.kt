@@ -26,6 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.LocationSearching
+import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material3.HorizontalDivider
@@ -35,17 +37,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.udenar.runway.domain.Lugar
 import com.udenar.runway.ui.components.AvisoEstado
+import com.udenar.runway.ui.components.BotonCircular
 import com.udenar.runway.ui.components.BarraBusqueda
 import com.udenar.runway.ui.components.EstadoCargando
 import com.udenar.runway.ui.components.EstadoVacio
@@ -54,6 +63,9 @@ import com.udenar.runway.ui.components.TipoAviso
 import com.udenar.runway.ui.mapa.MapaRunway
 import com.udenar.runway.ui.theme.Espacio
 import com.udenar.runway.ui.theme.Runway
+import com.udenar.runway.ui.ubicacion.abrirAjustesDeLaApp
+import com.udenar.runway.ui.ubicacion.abrirAjustesDeUbicacion
+import com.udenar.runway.ui.ubicacion.rememberPedirPermisoUbicacion
 
 /** Explorar (especificación 5.3): mapa de cualquier lugar, buscador y punto seleccionado. */
 @Composable
@@ -63,11 +75,29 @@ fun ExplorarScreen(vm: ExplorarViewModel = viewModel(factory = ExplorarViewModel
     val densidad = LocalDensity.current
     // La brújula aparece bajo el buscador (barra de estado + buscador + margen)
     val margenBrujula = WindowInsets.statusBars.getTop(densidad) + with(densidad) { 92.dp.roundToPx() }
+    val context = LocalContext.current
+    val ciclo = LocalLifecycleOwner.current
+
+    // Mecanismo 1: el GPS se escucha solo mientras la pantalla está visible y hay permiso
+    LaunchedEffect(estado.permisoUbicacion) {
+        if (estado.permisoUbicacion) ciclo.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.seguirUbicacion() }
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.actualizarPermiso() }
+    val pedirPermiso = rememberPedirPermisoUbicacion(vm::onResultadoPermiso)
+
+    val onCentrar: () -> Unit = {
+        when {
+            estado.permisoUbicacion -> vm.centrarEnMi()
+            estado.aviso == AvisoUbicacion.PermisoBloqueado -> context.abrirAjustesDeLaApp()
+            else -> pedirPermiso()
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         MapaRunway(
             camaraInicial = estado.camara,
             puntoSeleccionado = estado.seleccionado?.coordenada,
+            miPosicion = estado.miPosicion?.coordenada,
             comandos = vm.comandos,
             intentoCarga = estado.intentoCarga,
             onEstiloCargado = vm::onEstiloCargado,
@@ -105,9 +135,28 @@ fun ExplorarScreen(vm: ExplorarViewModel = viewModel(factory = ExplorarViewModel
             if (!estado.conectado) {
                 AvisoEstado(TipoAviso.SinConexion, "Sin conexión: verás solo lo que el mapa ya cargó")
             } else if (!estado.mapaListo && !estado.errorMapa) {
-                Surface(shape = RoundedCornerShape(50), color = Runway.Superficie, shadowElevation = 2.dp) {
-                    EstadoCargando("Cargando mapa…", Modifier.padding(horizontal = Espacio.l).width(180.dp))
-                }
+                PildoraCargando("Cargando mapa…")
+            }
+            when (estado.aviso) {
+                AvisoUbicacion.PermisoNegado -> AvisoEstado(
+                    TipoAviso.SinUbicacion,
+                    "Sin permiso de ubicación. Toca el mapa para elegir un punto.",
+                    accion = "Permitir",
+                    onAccion = pedirPermiso,
+                )
+                AvisoUbicacion.PermisoBloqueado -> AvisoEstado(
+                    TipoAviso.SinUbicacion,
+                    "Sin permiso de ubicación. Actívalo en Ajustes o toca el mapa.",
+                    accion = "Ajustes",
+                    onAccion = { context.abrirAjustesDeLaApp() },
+                )
+                AvisoUbicacion.UbicacionApagada -> AvisoEstado(
+                    TipoAviso.SinUbicacion,
+                    "La ubicación del teléfono está apagada.",
+                    accion = "Activar",
+                    onAccion = { context.abrirAjustesDeUbicacion() },
+                )
+                null -> if (estado.buscandoMiPosicion) PildoraCargando("Buscando tu ubicación…")
             }
         }
 
@@ -128,17 +177,38 @@ fun ExplorarScreen(vm: ExplorarViewModel = viewModel(factory = ExplorarViewModel
             }
         }
 
-        // Parte inferior: lugar seleccionado (deja libre la atribución © OpenStreetMap)
-        AnimatedVisibility(
-            visible = estado.seleccionado != null,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut(),
-            modifier = Modifier
+        // Parte inferior: centrar en mí + lugar seleccionado (deja libre la atribución © OpenStreetMap)
+        Column(
+            Modifier
                 .align(Alignment.BottomCenter)
+                .fillMaxWidth()
                 .padding(start = Espacio.l, end = Espacio.l, bottom = 40.dp),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(Espacio.m),
         ) {
-            estado.seleccionado?.let { TarjetaLugar(it, onCerrar = vm::quitarSeleccion) }
+            BotonCircular(
+                icono = if (estado.permisoUbicacion) Icons.Outlined.MyLocation else Icons.Outlined.LocationSearching,
+                descripcion = "Centrar en mi ubicación",
+                onClick = onCentrar,
+                tamano = 52.dp,
+                sombra = 6.dp,
+                colorIcono = Runway.MoradoOscuro,
+            )
+            AnimatedVisibility(
+                visible = estado.seleccionado != null,
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+            ) {
+                estado.seleccionado?.let { TarjetaLugar(it, onCerrar = vm::quitarSeleccion) }
+            }
         }
+    }
+}
+
+@Composable
+private fun PildoraCargando(texto: String) {
+    Surface(shape = RoundedCornerShape(50), color = Runway.Superficie, shadowElevation = 2.dp) {
+        EstadoCargando(texto, Modifier.padding(horizontal = Espacio.l).width(220.dp))
     }
 }
 

@@ -3,8 +3,10 @@ package com.udenar.runway.di
 import android.content.Context
 import com.udenar.runway.data.lugares.BuscadorLugares
 import com.udenar.runway.data.preferencias.PreferenciasMapa
+import com.udenar.runway.data.preferencias.PreferenciasPerfil
 import com.udenar.runway.data.red.MonitorConexion
 import com.udenar.runway.data.red.crearClienteHttp
+import com.udenar.runway.data.ubicacion.RepositorioUbicacion
 
 /**
  * Inyección de dependencias manual.
@@ -13,7 +15,7 @@ import com.udenar.runway.data.red.crearClienteHttp
  * ViewModel (capa de presentación). Así ninguna pantalla habla directo con el GPS,
  * con los servicios de mapas ni con la base de datos: todo pasa por esta capa.
  *
- * Pendiente por partes: ubicación (3), Valhalla (4), Room (5) y Supabase (8).
+ * Pendiente por partes: Valhalla (4), Room (5) y Supabase (8).
  */
 class AppContainer(context: Context) {
     private val app = context.applicationContext
@@ -21,5 +23,7 @@ class AppContainer(context: Context) {
     val http by lazy { crearClienteHttp() }
     val monitorConexion by lazy { MonitorConexion(app) }
     val preferenciasMapa by lazy { PreferenciasMapa(app) }
+    val preferenciasPerfil by lazy { PreferenciasPerfil(app) }
     val buscadorLugares by lazy { BuscadorLugares(http) }
+    val ubicacion by lazy { RepositorioUbicacion(app) }
 }

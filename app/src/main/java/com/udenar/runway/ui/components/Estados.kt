@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.CloudSync
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.GpsNotFixed
+import androidx.compose.material.icons.outlined.LocationOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -75,6 +76,7 @@ enum class TipoAviso(val icono: ImageVector, val fondo: Color, val color: Color)
     PendienteSincronizar(Icons.Outlined.CloudSync, Runway.LavandaClaro, Runway.MoradoOscuro),
     Sincronizado(Icons.Outlined.CheckCircle, Runway.LimaClaro, Runway.Texto),
     GpsDebil(Icons.Outlined.GpsNotFixed, Runway.AvisoClaro, Runway.Aviso),
+    SinUbicacion(Icons.Outlined.LocationOff, Runway.AvisoClaro, Runway.Aviso),
     Error(Icons.Outlined.ErrorOutline, Runway.ErrorClaro, Runway.Error),
 }
 

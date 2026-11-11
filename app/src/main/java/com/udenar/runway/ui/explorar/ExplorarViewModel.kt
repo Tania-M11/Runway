@@ -9,10 +9,15 @@ import com.udenar.runway.RunwayApp
 import com.udenar.runway.data.lugares.BuscadorLugares
 import com.udenar.runway.data.preferencias.PreferenciasMapa
 import com.udenar.runway.data.red.MonitorConexion
+import com.udenar.runway.data.ubicacion.RepositorioUbicacion
 import com.udenar.runway.domain.Coordenada
 import com.udenar.runway.domain.Lugar
 import com.udenar.runway.domain.PosicionCamara
+import com.udenar.runway.domain.PosicionGps
 import com.udenar.runway.ui.mapa.ComandoMapa
+import com.udenar.runway.ui.ubicacion.ResultadoPermiso
+import kotlinx.coroutines.coroutineScope
+import kotlin.math.max
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -34,7 +39,13 @@ data class ExplorarEstado(
     val resultados: List<Lugar> = emptyList(),
     val mensajeBusqueda: String? = null,
     val seleccionado: Lugar? = null,
+    val permisoUbicacion: Boolean = false,
+    val miPosicion: PosicionGps? = null,
+    val buscandoMiPosicion: Boolean = false,
+    val aviso: AvisoUbicacion? = null,
 )
+
+enum class AvisoUbicacion { PermisoNegado, PermisoBloqueado, UbicacionApagada }
 
 /**
  * ViewModel de Explorar: recibe los eventos del mapa (toques, movimientos, errores),
@@ -43,10 +54,17 @@ data class ExplorarEstado(
 class ExplorarViewModel(
     private val buscador: BuscadorLugares,
     private val preferencias: PreferenciasMapa,
+    private val ubicacion: RepositorioUbicacion,
     monitor: MonitorConexion,
 ) : ViewModel() {
 
-    private val _estado = MutableStateFlow(ExplorarEstado(camara = preferencias.ultimaCamara()))
+    private val _estado = MutableStateFlow(
+        ExplorarEstado(
+            camara = preferencias.ultimaCamara(),
+            permisoUbicacion = ubicacion.tienePermiso(),
+            miPosicion = ubicacion.ultimaConocida(),
+        ),
+    )
     val estado: StateFlow<ExplorarEstado> = _estado.asStateFlow()
 
     private val _comandos = Channel<ComandoMapa>(Channel.BUFFERED)
@@ -54,6 +72,9 @@ class ExplorarViewModel(
 
     private var busqueda: Job? = null
     private var nombrePunto: Job? = null
+
+    /** La primera posición recibida centra el mapa una sola vez (especificación 5.3). */
+    private var centradoInicial = false
 
     init {
         viewModelScope.launch {
@@ -87,7 +108,9 @@ class ExplorarViewModel(
             limpiarBusqueda()
             return
         }
-        _estado.update { it.copy(seleccionado = Lugar("Punto seleccionado", "Buscando dirección…", punto)) }
+        _estado.update {
+            it.copy(seleccionado = Lugar("Punto seleccionado", "Buscando dirección…", punto), aviso = null)
+        }
         nombrePunto?.cancel()
         nombrePunto = viewModelScope.launch {
             val lugar = runCatching { buscador.nombreDe(punto) }.getOrNull()
@@ -101,6 +124,65 @@ class ExplorarViewModel(
     fun quitarSeleccion() {
         nombrePunto?.cancel()
         _estado.update { it.copy(seleccionado = null) }
+    }
+
+    // --- Ubicación del usuario (mecanismo 1 -> ViewModel -> mapa) ---
+
+    /** Se llama al volver a la pantalla: el usuario pudo cambiar el permiso en Ajustes. */
+    fun actualizarPermiso() {
+        val permiso = ubicacion.tienePermiso()
+        _estado.update {
+            it.copy(
+                permisoUbicacion = permiso,
+                aviso = if (permiso && it.aviso != AvisoUbicacion.UbicacionApagada) null else it.aviso,
+            )
+        }
+    }
+
+    /**
+     * Escucha el GPS mientras la pantalla está visible. La pantalla la ejecuta con
+     * repeatOnLifecycle(STARTED): al salir de la app se cancela y el GPS se apaga.
+     */
+    suspend fun seguirUbicacion() = coroutineScope {
+        if (!ubicacion.tienePermiso()) return@coroutineScope
+        launch {
+            ubicacion.ubicacionActivadaFlow.collect { activa ->
+                if (activa) _estado.update { if (it.aviso == AvisoUbicacion.UbicacionApagada) it.copy(aviso = null) else it }
+            }
+        }
+        ubicacion.posiciones().collect { p ->
+            val antes = _estado.value
+            _estado.update { it.copy(miPosicion = p, buscandoMiPosicion = false) }
+            if (!centradoInicial || antes.buscandoMiPosicion) {
+                centradoInicial = true
+                _comandos.trySend(ComandoMapa.MoverCamara(p.coordenada, max(antes.camara.zoom, 15.5)))
+            }
+        }
+    }
+
+    /** Botón "centrar en mí" (solo se llama con permiso concedido). */
+    fun centrarEnMi() {
+        val e = _estado.value
+        val posicion = e.miPosicion
+        when {
+            !ubicacion.ubicacionActivada() -> _estado.update { it.copy(aviso = AvisoUbicacion.UbicacionApagada) }
+            posicion != null -> {
+                centradoInicial = true
+                _comandos.trySend(ComandoMapa.MoverCamara(posicion.coordenada, max(e.camara.zoom, 16.0)))
+            }
+            else -> _estado.update { it.copy(buscandoMiPosicion = true) }
+        }
+    }
+
+    fun onResultadoPermiso(resultado: ResultadoPermiso) {
+        when (resultado) {
+            ResultadoPermiso.Concedido -> {
+                _estado.update { it.copy(permisoUbicacion = true, aviso = null) }
+                centrarEnMi()
+            }
+            ResultadoPermiso.Denegado -> _estado.update { it.copy(aviso = AvisoUbicacion.PermisoNegado) }
+            ResultadoPermiso.DenegadoPermanente -> _estado.update { it.copy(aviso = AvisoUbicacion.PermisoBloqueado) }
+        }
     }
 
     // --- Buscador de lugares (cualquier ciudad) ---
@@ -141,6 +223,7 @@ class ExplorarViewModel(
 
     fun elegirLugar(lugar: Lugar) {
         busqueda?.cancel()
+        centradoInicial = true // no saltar a la posición del GPS después de elegir un lugar
         _estado.update {
             it.copy(seleccionado = lugar, consulta = "", resultados = emptyList(), mensajeBusqueda = null, buscando = false)
         }
@@ -156,7 +239,7 @@ class ExplorarViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val c = (this[APPLICATION_KEY] as RunwayApp).contenedor
-                ExplorarViewModel(c.buscadorLugares, c.preferenciasMapa, c.monitorConexion)
+                ExplorarViewModel(c.buscadorLugares, c.preferenciasMapa, c.ubicacion, c.monitorConexion)
             }
         }
     }

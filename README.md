@@ -53,7 +53,7 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 0 | Base del proyecto, dependencias, permisos y repositorio | | Hecha |
 | 1 | Sistema visual (colores, Plus Jakarta Sans, componentes) y navegación inferior | 4, Inicio vacío (5.2) | Hecha |
 | 2 | Explorar: `MapView`, teselas, gestos, buscador de lugares de cualquier ciudad, error y reintento | 5.3 | Hecha |
-| 3 | Ubicación y configuración inicial del corredor (permisos explicados) | 5.1, 5.3 | |
+| 3 | Ubicación (`LocationManager`), configuración inicial del corredor, posición en vivo y centrar en mí | 5.1, 5.3 | Hecha |
 | 4 | Planificar con Valhalla: circuitos, comparación y detalle | 5.4, 5.5, 5.6 | |
 | 5 | Room: guardar y consultar Mis rutas | 5.11 | |
 | 6 | Entrenamiento activo con servicio en primer plano, pausa y resumen | 5.7, 5.8, 5.9 | |

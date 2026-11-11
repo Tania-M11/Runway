@@ -27,6 +27,7 @@ import org.maplibre.android.maps.OnMapReadyCallback
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.PropertyFactory.circleColor
+import org.maplibre.android.style.layers.PropertyFactory.circleOpacity
 import org.maplibre.android.style.layers.PropertyFactory.circleRadius
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
@@ -48,6 +49,9 @@ sealed interface ComandoMapa {
 
 private const val FUENTE_PUNTO = "punto-seleccionado"
 private const val CAPA_PUNTO = "punto-seleccionado-capa"
+private const val FUENTE_YO = "mi-ubicacion"
+private const val CAPA_YO_HALO = "mi-ubicacion-halo"
+private const val CAPA_YO = "mi-ubicacion-punto"
 
 /**
  * Integración del mapa en Compose (mecanismos 2, 3 y 4 del tema de clase).
@@ -68,6 +72,7 @@ private const val CAPA_PUNTO = "punto-seleccionado-capa"
 fun MapaRunway(
     camaraInicial: PosicionCamara,
     puntoSeleccionado: Coordenada?,
+    miPosicion: Coordenada?,
     comandos: Flow<ComandoMapa>,
     intentoCarga: Int,
     onEstiloCargado: () -> Unit,
@@ -147,12 +152,12 @@ fun MapaRunway(
 
     // Capa del punto seleccionado (GeoJSON + círculo morado)
     LaunchedEffect(estilo, puntoSeleccionado) {
-        val fuente = estilo?.getSourceAs<GeoJsonSource>(FUENTE_PUNTO) ?: return@LaunchedEffect
-        if (puntoSeleccionado == null) {
-            fuente.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
-        } else {
-            fuente.setGeoJson(Feature.fromGeometry(Point.fromLngLat(puntoSeleccionado.lon, puntoSeleccionado.lat)))
-        }
+        estilo?.getSourceAs<GeoJsonSource>(FUENTE_PUNTO)?.setGeoJson(geojsonDe(puntoSeleccionado))
+    }
+
+    // Capa de la posición del usuario (viene del GPS a través del ViewModel)
+    LaunchedEffect(estilo, miPosicion) {
+        estilo?.getSourceAs<GeoJsonSource>(FUENTE_YO)?.setGeoJson(geojsonDe(miPosicion))
     }
 
     // Órdenes del ViewModel → controlador del mapa
@@ -171,14 +176,35 @@ fun MapaRunway(
     AndroidView(factory = { mapView }, modifier = modifier)
 }
 
+private fun geojsonDe(c: Coordenada?): FeatureCollection = FeatureCollection.fromFeatures(
+    listOfNotNull(c?.let { Feature.fromGeometry(Point.fromLngLat(it.lon, it.lat)) }),
+)
+
+/** Capas propias sobre el mapa base: primero la posición del usuario, encima el punto elegido. */
 private fun prepararCapas(estilo: Style) {
+    estilo.addSource(GeoJsonSource(FUENTE_YO))
+    estilo.addLayer(
+        CircleLayer(CAPA_YO_HALO, FUENTE_YO).withProperties(
+            circleRadius(20f),
+            circleColor(Color.parseColor("#7668E8")),
+            circleOpacity(0.18f),
+        ),
+    )
+    estilo.addLayer(
+        CircleLayer(CAPA_YO, FUENTE_YO).withProperties(
+            circleRadius(8f),
+            circleColor(Color.parseColor("#5144B8")),
+            circleStrokeWidth(3f),
+            circleStrokeColor(Color.WHITE),
+        ),
+    )
     estilo.addSource(GeoJsonSource(FUENTE_PUNTO))
     estilo.addLayer(
         CircleLayer(CAPA_PUNTO, FUENTE_PUNTO).withProperties(
-            circleRadius(9f),
-            circleColor(Color.parseColor("#7668E8")),
-            circleStrokeWidth(3f),
-            circleStrokeColor(Color.WHITE),
+            circleRadius(10f),
+            circleColor(Color.parseColor("#D5F36A")),
+            circleStrokeWidth(4f),
+            circleStrokeColor(Color.parseColor("#172033")),
         ),
     )
 }
