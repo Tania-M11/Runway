@@ -3,6 +3,7 @@ package com.udenar.runway.data.entrenamiento
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
+import com.udenar.runway.data.amigos.PublicadorUbicacion
 import com.udenar.runway.data.local.EntrenamientoEntidad
 import com.udenar.runway.data.local.EntrenamientosDao
 import com.udenar.runway.data.local.PuntoGpsEntidad
@@ -65,6 +66,8 @@ class SesionEntrenamiento(
     private val app: Context,
     private val ubicacion: RepositorioUbicacion,
     private val dao: EntrenamientosDao,
+    /** Comparte la posición con los amigos mientras el entrenamiento está activo (parte 10). */
+    private val publicador: PublicadorUbicacion? = null,
     private val reloj: () -> Long = System::currentTimeMillis,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -122,6 +125,7 @@ class SesionEntrenamiento(
         val ahora = reloj()
         val acumulado = s.duracionMs(ahora)
         _estado.update { it.copy(estado = EstadoEntrenamiento.Pausado, acumuladoMs = acumulado, tramoInicioEn = null, ritmoActualSegKm = null) }
+        scope.launch { publicador?.retirar() } // en pausa los amigos dejan de verte
         guardarEntidad { it.copy(estado = PAUSADO, duracionMs = acumulado, tramoInicioEn = null, actualizadoEn = ahora) }
     }
 
@@ -243,6 +247,8 @@ class SesionEntrenamiento(
                 segmentos = it.segmentos.dropLast(1) + listOf(it.segmentos.lastOrNull().orEmpty() + p.coordenada),
             )
         }
+        val inicio = _estado.value.inicioEn
+        scope.launch { publicador?.publicar(p.coordenada, distancia, inicio) }
         bloqueo.withLock {
             val e = entidad ?: return
             val actualizada = e.copy(distanciaM = distancia, subidaM = subida, actualizadoEn = ahora)
@@ -283,6 +289,7 @@ class SesionEntrenamiento(
     }
 
     private fun terminarSesion() {
+        scope.launch { publicador?.retirar() }
         gps?.cancel()
         entidad = null
         reiniciarCalculos()

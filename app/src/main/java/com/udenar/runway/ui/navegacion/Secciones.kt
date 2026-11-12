@@ -59,6 +59,9 @@ data class GrafoPlanificar(
 /** Resumen de un entrenamiento terminado. */
 @Serializable data class RutaResumenEntrenamiento(val id: String, val recienTerminado: Boolean = true)
 
+/** Amigos (agregar por código, solicitudes, lista). */
+@Serializable data object RutaAmigos
+
 /** Historial y estadísticas. */
 @Serializable data object RutaHistorial
 

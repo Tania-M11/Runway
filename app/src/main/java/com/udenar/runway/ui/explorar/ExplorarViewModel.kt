@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.udenar.runway.RunwayApp
+import com.udenar.runway.data.amigos.AmigoEnVivo
+import com.udenar.runway.data.amigos.AmigosEnVivo
 import com.udenar.runway.data.lugares.BuscadorLugares
 import com.udenar.runway.data.preferencias.PreferenciasMapa
 import com.udenar.runway.data.red.MonitorConexion
@@ -43,6 +45,8 @@ data class ExplorarEstado(
     val miPosicion: PosicionGps? = null,
     val buscandoMiPosicion: Boolean = false,
     val aviso: AvisoUbicacion? = null,
+    /** Amigos que están corriendo ahora (Supabase Realtime). */
+    val amigos: List<AmigoEnVivo> = emptyList(),
 )
 
 enum class AvisoUbicacion { PermisoNegado, PermisoBloqueado, UbicacionApagada }
@@ -55,6 +59,7 @@ class ExplorarViewModel(
     private val buscador: BuscadorLugares,
     private val preferencias: PreferenciasMapa,
     private val ubicacion: RepositorioUbicacion,
+    private val amigosEnVivo: AmigosEnVivo,
     monitor: MonitorConexion,
 ) : ViewModel() {
 
@@ -185,6 +190,18 @@ class ExplorarViewModel(
         }
     }
 
+    // --- Amigos en vivo (parte 10) ---
+
+    /** Escucha a los amigos que corren mientras la pantalla está visible. */
+    suspend fun seguirAmigos() {
+        amigosEnVivo.observar().collect { lista -> _estado.update { it.copy(amigos = lista) } }
+    }
+
+    fun irAAmigo(a: AmigoEnVivo) {
+        centradoInicial = true
+        _comandos.trySend(ComandoMapa.MoverCamara(a.coordenada, 16.0))
+    }
+
     // --- Buscador de lugares (cualquier ciudad) ---
 
     fun onConsulta(texto: String) {
@@ -239,7 +256,7 @@ class ExplorarViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val c = (this[APPLICATION_KEY] as RunwayApp).contenedor
-                ExplorarViewModel(c.buscadorLugares, c.preferenciasMapa, c.ubicacion, c.monitorConexion)
+                ExplorarViewModel(c.buscadorLugares, c.preferenciasMapa, c.ubicacion, c.amigosEnVivo, c.monitorConexion)
             }
         }
     }

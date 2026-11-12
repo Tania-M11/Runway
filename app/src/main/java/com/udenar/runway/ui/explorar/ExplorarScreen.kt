@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -63,7 +64,11 @@ import com.udenar.runway.ui.components.EstadoVacio
 import com.udenar.runway.ui.components.FilaLugar
 import com.udenar.runway.ui.components.TarjetaRunway
 import com.udenar.runway.ui.components.TipoAviso
+import com.udenar.runway.data.amigos.AmigoEnVivo
+import com.udenar.runway.domain.formatoKm
+import com.udenar.runway.ui.components.AvatarImagen
 import com.udenar.runway.ui.mapa.MapaRunway
+import com.udenar.runway.ui.mapa.MarcadorAmigo
 import com.udenar.runway.ui.theme.Espacio
 import com.udenar.runway.ui.theme.Runway
 import com.udenar.runway.ui.ubicacion.abrirAjustesDeLaApp
@@ -89,6 +94,8 @@ fun ExplorarScreen(
         if (estado.permisoUbicacion) ciclo.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.seguirUbicacion() }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.actualizarPermiso() }
+    // Amigos corriendo: el canal de tiempo real se abre solo con la pantalla visible
+    LaunchedEffect(Unit) { ciclo.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.seguirAmigos() } }
     val pedirPermiso = rememberPedirPermisoUbicacion(vm::onResultadoPermiso)
 
     val onCentrar: () -> Unit = {
@@ -104,6 +111,7 @@ fun ExplorarScreen(
             camaraInicial = estado.camara,
             puntoSeleccionado = estado.seleccionado?.coordenada,
             miPosicion = estado.miPosicion?.coordenada,
+            amigos = estado.amigos.map { MarcadorAmigo(it.id, it.nombre, it.avatar, it.coordenada) },
             comandos = vm.comandos,
             intentoCarga = estado.intentoCarga,
             onEstiloCargado = vm::onEstiloCargado,
@@ -131,6 +139,9 @@ fun ExplorarScreen(
                 sugerencia = "Buscar ciudad, barrio o parque",
                 onLimpiar = vm::limpiarBusqueda,
             )
+            if (estado.amigos.isNotEmpty() && estado.consulta.isEmpty()) {
+                FilaAmigosCorriendo(estado.amigos, onClick = vm::irAAmigo)
+            }
             PanelResultados(
                 estado = estado,
                 onElegir = {
@@ -221,6 +232,29 @@ fun ExplorarScreen(
             ) {
                 estado.seleccionado?.let { lugar ->
                     TarjetaLugar(lugar, onCerrar = vm::quitarSeleccion, onPlanificar = { onPlanificar(lugar) })
+                }
+            }
+        }
+    }
+}
+
+/** Amigos que están corriendo ahora: avatar, nombre y distancia; al tocar, el mapa va hacia ellos. */
+@Composable
+private fun FilaAmigosCorriendo(amigos: List<AmigoEnVivo>, onClick: (AmigoEnVivo) -> Unit) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(Espacio.s)) {
+        items(amigos, key = { it.id }) { a ->
+            Surface(onClick = { onClick(a) }, shape = RoundedCornerShape(50), color = Runway.Superficie, shadowElevation = 4.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 4.dp, bottom = 4.dp)) {
+                    AvatarImagen(a.avatar, tamano = 32.dp)
+                    Spacer(Modifier.width(Espacio.s))
+                    Column {
+                        Text(a.nombre, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                        Text(
+                            "Corriendo · ${formatoKm(a.distanciaM / 1000)} km",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Runway.MoradoOscuro,
+                        )
+                    }
                 }
             }
         }

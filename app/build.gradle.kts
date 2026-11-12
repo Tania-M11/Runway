@@ -84,6 +84,7 @@ dependencies {
     implementation(platform(libs.supabase.bom))
     implementation(libs.supabase.auth)
     implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.realtime) // amigos en vivo (WebSocket; requiere el motor OkHttp)
 
     // Sincronización diferida
     implementation(libs.androidx.work.runtime.ktx)

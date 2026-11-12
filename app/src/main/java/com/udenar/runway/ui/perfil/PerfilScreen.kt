@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
@@ -47,6 +48,7 @@ import com.udenar.runway.ui.components.BotonCircular
 import com.udenar.runway.ui.components.BotonRunway
 import com.udenar.runway.ui.components.EncabezadoPantalla
 import com.udenar.runway.ui.components.EstiloBoton
+import com.udenar.runway.ui.components.TarjetaAcceso
 import com.udenar.runway.ui.components.TarjetaRunway
 import com.udenar.runway.ui.theme.Espacio
 import com.udenar.runway.ui.theme.Runway
@@ -57,7 +59,7 @@ import kotlinx.coroutines.launch
  * Editar nombre, avatar y preferencias llega en la parte 11.
  */
 @Composable
-fun PerfilScreen() {
+fun PerfilScreen(onAmigos: () -> Unit) {
     val context = LocalContext.current
     val contenedor = (context.applicationContext as RunwayApp).contenedor
     val perfil by contenedor.preferenciasPerfil.perfil.collectAsStateWithLifecycle()
@@ -118,6 +120,14 @@ fun PerfilScreen() {
                 color = Runway.TextoSecundario,
             )
         }
+
+        TarjetaAcceso(
+            titulo = "Amigos",
+            descripcion = "Agrega amigos con su código y mírense en el mapa mientras corren",
+            icono = Icons.Outlined.Groups,
+            onClick = onAmigos,
+            fondoIcono = Runway.LimaClaro,
+        )
 
         TarjetaRunway(Modifier.fillMaxWidth()) {
             FilaDato("Nivel", p.nivel?.etiqueta ?: "Sin definir")

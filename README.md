@@ -76,7 +76,7 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 7 | Historial (7 días, 30 días, 12 meses), gráficas, récords e Inicio con datos reales | 5.10, 5.2 | Hecha |
 | 8 | Cuentas: bienvenida, registro con avatar, inicio de sesión, perfil con código de amigo | Acceso, 5.12 | Hecha |
 | 9 | Sincronización de rutas y entrenamientos con Supabase (WorkManager) | 7 | Hecha |
-| 10 | Amigos por código con aceptación y ubicación en vivo mientras entrenan | — | |
+| 10 | Amigos por código con aceptación y ubicación en vivo mientras entrenan (Realtime) | — | Hecha |
 | 11 | Perfil editable y pruebas de campo | 5.12 | |
 
 ## Backend (Supabase)
@@ -85,6 +85,8 @@ Proyecto `runway`. Los esquemas están en `supabase/` y se aplican en orden:
 
 1. `01_perfiles.sql`: perfil por cuenta (nombre, avatar, código de amigo, nivel y desnivel), creado por un trigger al registrarse.
 2. `02_sincronizacion.sql`: copia remota de rutas y entrenamientos con seguridad por filas (cada cuenta solo ve lo suyo).
+
+3. `03_amigos.sql`: amistades con aceptación (funciones `solicitar_amistad`, `responder_solicitud`, `eliminar_amistad`, `mis_amigos`) y `ubicaciones_en_vivo`, publicada en Supabase Realtime. Solo los amigos aceptados ven la ubicación, y solo existe mientras el entrenamiento está activo.
 
 En Authentication está apagado "Confirm email" para poder probar con varias cuentas.
 

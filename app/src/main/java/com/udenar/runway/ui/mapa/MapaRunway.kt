@@ -1,6 +1,27 @@
 package com.udenar.runway.ui.mapa
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import com.udenar.runway.domain.AVATARES
+import com.udenar.runway.ui.components.recursoAvatar
+import org.maplibre.android.style.layers.PropertyFactory.iconAllowOverlap
+import org.maplibre.android.style.layers.PropertyFactory.iconIgnorePlacement
+import org.maplibre.android.style.layers.PropertyFactory.iconImage
+import org.maplibre.android.style.layers.PropertyFactory.textAllowOverlap
+import org.maplibre.android.style.layers.PropertyFactory.textAnchor
+import org.maplibre.android.style.layers.PropertyFactory.textColor
+import org.maplibre.android.style.layers.PropertyFactory.textField
+import org.maplibre.android.style.layers.PropertyFactory.textFont
+import org.maplibre.android.style.layers.PropertyFactory.textHaloColor
+import org.maplibre.android.style.layers.PropertyFactory.textHaloWidth
+import org.maplibre.android.style.layers.PropertyFactory.textOffset
+import org.maplibre.android.style.layers.PropertyFactory.textSize
+import org.maplibre.android.style.layers.SymbolLayer
 import android.graphics.RectF
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -64,6 +85,9 @@ sealed interface ComandoMapa {
     data class Encuadrar(val puntos: List<Coordenada>, val margenPx: Int = 120) : ComandoMapa
 }
 
+/** Amigo que está corriendo ahora (se dibuja con su avatar). */
+data class MarcadorAmigo(val id: String, val nombre: String, val avatar: String, val coordenada: Coordenada)
+
 /** Una línea a dibujar sobre el mapa (alternativa de ruta o trazado GPS). */
 data class TrazoRuta(
     val id: String,
@@ -81,6 +105,8 @@ private const val FUENTE_RUTAS = "rutas"
 private const val CAPA_RUTAS_BORDE = "rutas-borde"
 private const val CAPA_RUTAS = "rutas-linea"
 private const val FUENTE_FIN = "fin-ruta"
+private const val FUENTE_AMIGOS = "amigos-en-vivo"
+private const val CAPA_AMIGOS = "amigos-en-vivo-capa"
 private const val CAPA_FIN = "fin-ruta-capa"
 
 /**
@@ -106,6 +132,7 @@ fun MapaRunway(
     miPosicion: Coordenada? = null,
     rutas: List<TrazoRuta> = emptyList(),
     finRuta: Coordenada? = null,
+    amigos: List<MarcadorAmigo> = emptyList(),
     comandos: Flow<ComandoMapa> = emptyFlow(),
     intentoCarga: Int = 0,
     onEstiloCargado: () -> Unit = {},
@@ -197,7 +224,7 @@ fun MapaRunway(
         val m = mapa ?: return@LaunchedEffect
         estilo = null
         m.setStyle(Style.Builder().fromUri(ESTILO_MAPA)) { s ->
-            prepararCapas(s)
+            prepararCapas(s, context)
             estilo = s
             alCargar()
         }
@@ -211,6 +238,19 @@ fun MapaRunway(
     }
     LaunchedEffect(estilo, miPosicion) {
         estilo?.getSourceAs<GeoJsonSource>(FUENTE_YO)?.setGeoJson(geojsonDe(miPosicion))
+    }
+    LaunchedEffect(estilo, amigos) {
+        estilo?.getSourceAs<GeoJsonSource>(FUENTE_AMIGOS)?.setGeoJson(
+            FeatureCollection.fromFeatures(
+                amigos.map { a ->
+                    Feature.fromGeometry(Point.fromLngLat(a.coordenada.lon, a.coordenada.lat)).apply {
+                        addStringProperty("id", a.id)
+                        addStringProperty("nombre", a.nombre)
+                        addStringProperty("avatar", a.avatar)
+                    }
+                },
+            ),
+        )
     }
     LaunchedEffect(estilo, rutas) {
         estilo?.getSourceAs<GeoJsonSource>(FUENTE_RUTAS)?.setGeoJson(geojsonDeRutas(rutas))
@@ -254,6 +294,27 @@ private fun ejecutar(m: MapLibreMap, comando: ComandoMapa) {
     }
 }
 
+/** Avatar recortado en círculo con anillo morado y blanco, para usarlo como ícono del mapa. */
+private fun avatarCircular(context: Context, id: String, tamano: Int): Bitmap {
+    val original = BitmapFactory.decodeResource(context.resources, recursoAvatar(id))
+    val salida = Bitmap.createBitmap(tamano, tamano, Bitmap.Config.ARGB_8888)
+    val lienzo = Canvas(salida)
+    val centro = tamano / 2f
+    val pincel = Paint(Paint.ANTI_ALIAS_FLAG)
+    pincel.color = Color.parseColor("#7668E8")
+    lienzo.drawCircle(centro, centro, centro, pincel)
+    pincel.color = Color.WHITE
+    lienzo.drawCircle(centro, centro, centro * 0.88f, pincel)
+    val recorte = Path().apply { addCircle(centro, centro, centro * 0.80f, Path.Direction.CW) }
+    lienzo.save()
+    lienzo.clipPath(recorte)
+    val r = centro * 0.80f
+    lienzo.drawBitmap(original, null, RectF(centro - r, centro - r, centro + r, centro + r), Paint(Paint.FILTER_BITMAP_FLAG))
+    lienzo.restore()
+    original.recycle()
+    return salida
+}
+
 private fun geojsonDe(c: Coordenada?): FeatureCollection = FeatureCollection.fromFeatures(
     listOfNotNull(c?.let { Feature.fromGeometry(Point.fromLngLat(it.lon, it.lat)) }),
 )
@@ -271,7 +332,7 @@ private fun geojsonDeRutas(rutas: List<TrazoRuta>): FeatureCollection = FeatureC
 )
 
 /** Capas propias sobre el mapa base, de abajo hacia arriba: rutas, usuario, fin y punto de inicio. */
-private fun prepararCapas(estilo: Style) {
+private fun prepararCapas(estilo: Style, context: Context) {
     val seleccionada = Expression.toBool(Expression.get("sel"))
     estilo.addSource(GeoJsonSource(FUENTE_RUTAS))
     // Borde blanco solo en la ruta seleccionada, para resaltarla (especificación 5.5)
@@ -319,6 +380,27 @@ private fun prepararCapas(estilo: Style) {
             circleColor(Color.parseColor("#172033")),
             circleStrokeWidth(4f),
             circleStrokeColor(Color.WHITE),
+        ),
+    )
+
+    // Amigos corriendo: su avatar en círculo con borde morado y el nombre debajo (capa de símbolos)
+    val tamano = (44 * context.resources.displayMetrics.density).toInt()
+    AVATARES.forEach { id -> estilo.addImage(id, avatarCircular(context, id, tamano)) }
+    estilo.addSource(GeoJsonSource(FUENTE_AMIGOS))
+    estilo.addLayer(
+        SymbolLayer(CAPA_AMIGOS, FUENTE_AMIGOS).withProperties(
+            iconImage(Expression.get("avatar")),
+            iconAllowOverlap(true),
+            iconIgnorePlacement(true),
+            textField(Expression.get("nombre")),
+            textFont(arrayOf("Noto Sans Regular")), // fuente incluida en el estilo de OpenFreeMap
+            textSize(12f),
+            textAnchor(Property.TEXT_ANCHOR_TOP),
+            textOffset(arrayOf(0f, 1.9f)),
+            textColor(Color.parseColor("#172033")),
+            textHaloColor(Color.WHITE),
+            textHaloWidth(1.5f),
+            textAllowOverlap(true),
         ),
     )
 

@@ -3,12 +3,16 @@ package com.udenar.runway.di
 import android.content.Context
 import androidx.room.Room
 import com.udenar.runway.BuildConfig
+import com.udenar.runway.data.amigos.AmigosEnVivo
+import com.udenar.runway.data.amigos.PublicadorUbicacion
+import com.udenar.runway.data.amigos.RepositorioAmigos
 import com.udenar.runway.data.cuenta.RepositorioCuenta
 import com.udenar.runway.data.red.JsonRunway
 import com.udenar.runway.data.sync.Sincronizador
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.serializer.KotlinXSerializer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -55,7 +59,7 @@ class AppContainer(context: Context) {
     val entrenamientos by lazy { RepositorioEntrenamientos(baseDatos.entrenamientos()) }
 
     /** Sesión de entrenamiento única, compartida por la pantalla y el servicio en primer plano. */
-    val sesion by lazy { SesionEntrenamiento(app, ubicacion, baseDatos.entrenamientos()) }
+    val sesion by lazy { SesionEntrenamiento(app, ubicacion, baseDatos.entrenamientos(), publicador) }
 
     // Supabase: la URL y la clave publicable vienen de local.properties (BuildConfig)
     val supabase by lazy {
@@ -66,8 +70,12 @@ class AppContainer(context: Context) {
             defaultSerializer = KotlinXSerializer(JsonRunway)
             install(Auth)
             install(Postgrest)
+            install(Realtime)
         }
     }
+    val amigos by lazy { RepositorioAmigos(supabase) }
+    val amigosEnVivo by lazy { AmigosEnVivo(supabase) }
+    private val publicador by lazy { PublicadorUbicacion(supabase, preferenciasPerfil) }
     val sincronizador by lazy { Sincronizador(supabase, baseDatos.rutas(), baseDatos.entrenamientos()) }
     val cuenta by lazy {
         RepositorioCuenta(
