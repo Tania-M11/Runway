@@ -13,7 +13,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -33,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import com.udenar.runway.ui.theme.Espacio
 import com.udenar.runway.ui.theme.Runway
 
+enum class TipoCampo { Nombre, Correo, Contrasena }
+
 /** Campo de texto con el estilo de RUNWAY (bordes redondeados, foco morado). */
 @Composable
 fun CampoTexto(
@@ -42,17 +54,43 @@ fun CampoTexto(
     modifier: Modifier = Modifier,
     ayuda: String? = null,
     onListo: () -> Unit = {},
+    /** Mensaje de error (se muestra en rojo con el borde de error). */
+    error: String? = null,
+    tipo: TipoCampo = TipoCampo.Nombre,
+    accion: ImeAction = ImeAction.Done,
 ) {
+    var visible by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = valor,
         onValueChange = onValor,
         label = { Text(etiqueta) },
-        supportingText = ayuda?.let { { Text(it) } },
+        supportingText = (error ?: ayuda)?.let { { Text(it) } },
+        isError = error != null,
         singleLine = true,
         shape = RoundedCornerShape(Espacio.radioPequeno),
         textStyle = MaterialTheme.typography.bodyLarge,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { onListo() }),
+        visualTransformation = if (tipo == TipoCampo.Contrasena && !visible) PasswordVisualTransformation() else VisualTransformation.None,
+        trailingIcon = if (tipo == TipoCampo.Contrasena) {
+            {
+                IconButton(onClick = { visible = !visible }) {
+                    Icon(
+                        if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                        contentDescription = if (visible) "Ocultar contraseña" else "Mostrar contraseña",
+                    )
+                }
+            }
+        } else null,
+        keyboardOptions = KeyboardOptions(
+            capitalization = if (tipo == TipoCampo.Nombre) KeyboardCapitalization.Words else KeyboardCapitalization.None,
+            keyboardType = when (tipo) {
+                TipoCampo.Correo -> KeyboardType.Email
+                TipoCampo.Contrasena -> KeyboardType.Password
+                TipoCampo.Nombre -> KeyboardType.Text
+            },
+            autoCorrectEnabled = tipo == TipoCampo.Nombre,
+            imeAction = accion,
+        ),
+        keyboardActions = KeyboardActions(onDone = { onListo() }, onGo = { onListo() }),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Runway.Morado,
             focusedLabelColor = Runway.Morado,

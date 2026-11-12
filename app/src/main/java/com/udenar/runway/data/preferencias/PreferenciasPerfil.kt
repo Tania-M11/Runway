@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Perfil del corredor guardado en el teléfono. Mientras sea null, la app muestra
- * la configuración inicial. (Con Supabase, en la parte 8, también se sincroniza.)
+ * Copia local del perfil de la cuenta (para usar la app sin internet).
+ * La fuente de verdad es la tabla `perfiles` de Supabase.
  */
 class PreferenciasPerfil(context: Context) {
 
@@ -22,24 +22,52 @@ class PreferenciasPerfil(context: Context) {
 
     fun guardar(perfil: PerfilCorredor) {
         prefs.edit {
+            putString(USUARIO, perfil.usuarioId)
             putString(NOMBRE, perfil.nombre)
-            putString(NIVEL, perfil.nivel.name)
-            putString(DESNIVEL, perfil.desnivel.name)
+            putString(AVATAR, perfil.avatar)
+            putString(CODIGO, perfil.codigo)
+            putString(NIVEL, perfil.nivel?.name)
+            putString(DESNIVEL, perfil.desnivel?.name)
         }
         _perfil.value = perfil
     }
 
+    fun actualizar(cambio: (PerfilCorredor) -> PerfilCorredor) {
+        _perfil.value?.let { guardar(cambio(it)) }
+    }
+
+    /** Al cerrar sesión se olvida el perfil (los datos de Room se conservan hasta que entre otra cuenta). */
+    fun borrar() {
+        prefs.edit {
+            listOf(USUARIO, NOMBRE, AVATAR, CODIGO, NIVEL, DESNIVEL).forEach { remove(it) }
+        }
+        _perfil.value = null
+    }
+
+    /** Cuenta a la que pertenecen los datos guardados en la base local del teléfono. */
+    var propietarioDatosLocales: String?
+        get() = prefs.getString(PROPIETARIO, null)
+        set(valor) = prefs.edit { putString(PROPIETARIO, valor) }
+
     private fun leer(): PerfilCorredor? {
-        val nombre = prefs.getString(NOMBRE, null) ?: return null
-        val nivel = prefs.getString(NIVEL, null)?.let { runCatching { Nivel.valueOf(it) }.getOrNull() } ?: return null
-        val desnivel = prefs.getString(DESNIVEL, null)
-            ?.let { runCatching { PreferenciaDesnivel.valueOf(it) }.getOrNull() } ?: return null
-        return PerfilCorredor(nombre, nivel, desnivel)
+        val usuario = prefs.getString(USUARIO, null) ?: return null
+        return PerfilCorredor(
+            usuarioId = usuario,
+            nombre = prefs.getString(NOMBRE, null) ?: "Corredor",
+            avatar = prefs.getString(AVATAR, null) ?: "avatar_1",
+            codigo = prefs.getString(CODIGO, null).orEmpty(),
+            nivel = prefs.getString(NIVEL, null)?.let { runCatching { Nivel.valueOf(it) }.getOrNull() },
+            desnivel = prefs.getString(DESNIVEL, null)?.let { runCatching { PreferenciaDesnivel.valueOf(it) }.getOrNull() },
+        )
     }
 
     private companion object {
+        const val USUARIO = "usuario"
         const val NOMBRE = "nombre"
+        const val AVATAR = "avatar"
+        const val CODIGO = "codigo"
         const val NIVEL = "nivel"
         const val DESNIVEL = "desnivel"
+        const val PROPIETARIO = "propietario_datos_locales"
     }
 }

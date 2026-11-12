@@ -32,6 +32,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.udenar.runway.domain.formatoHoras
 import com.udenar.runway.domain.formatoKm
+import com.udenar.runway.ui.components.AvatarImagen
 import com.udenar.runway.ui.components.AvisoEstado
 import com.udenar.runway.ui.components.BotonRunway
 import com.udenar.runway.ui.components.TipoAviso
@@ -57,6 +58,7 @@ fun InicioScreen(
     onEmpezar: () -> Unit,
     onMisRutas: () -> Unit,
     nombre: String = "corredor",
+    avatar: String = "avatar_1",
     entrenamientoEnCurso: Boolean = false,
     onVolverEntrenamiento: () -> Unit = {},
     datos: DatosInicio = DatosInicio(),
@@ -76,11 +78,7 @@ fun InicioScreen(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(top = Espacio.l, bottom = Espacio.xl),
         ) {
-            Surface(shape = CircleShape, color = Runway.Lima, modifier = Modifier.size(52.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(nombre.first().uppercase(), style = MaterialTheme.typography.titleLarge)
-                }
-            }
+            AvatarImagen(avatar, tamano = 52.dp)
             Spacer(Modifier.width(Espacio.m))
             Column {
                 Text("Hoy es un buen día para correr", style = MaterialTheme.typography.labelMedium, color = Runway.TextoSecundario)

@@ -9,3 +9,8 @@ local.properties
 /captures
 .externalNativeBuild
 .cxx
+
+# Originales de diseño (las versiones optimizadas están en res/)
+/avatar*.jpg
+/inicio.jpeg
+/logo.png

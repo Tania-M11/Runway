@@ -55,9 +55,21 @@ enum class PreferenciaDesnivel(val etiqueta: String, val descripcion: String) {
     Exigente("Exigente", "Busco cuestas para entrenar"),
 }
 
-/** Datos mínimos del corredor para personalizar las recomendaciones (especificación 5.1). */
+/**
+ * Perfil del corredor (especificación 5.1 + cuentas). Nivel y desnivel quedan en null
+ * hasta completar la configuración inicial después de registrarse.
+ */
 data class PerfilCorredor(
+    val usuarioId: String,
     val nombre: String,
-    val nivel: Nivel,
-    val desnivel: PreferenciaDesnivel,
-)
+    val avatar: String,
+    /** Código para que los amigos te agreguen (p. ej. "K7Q2MX"). */
+    val codigo: String,
+    val nivel: Nivel?,
+    val desnivel: PreferenciaDesnivel?,
+) {
+    val configurado: Boolean get() = nivel != null && desnivel != null
+}
+
+/** Avatares disponibles (imágenes en res/drawable-nodpi). */
+val AVATARES = listOf("avatar_1", "avatar_2", "avatar_3", "avatar_4", "avatar_5")

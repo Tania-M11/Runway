@@ -15,6 +15,8 @@ maplibre = "13.7.1"
 ktor = "3.6.0"
 # --- Base de datos local (offline-first) ---
 room = "2.8.5"
+# --- Backend ---
+supabase = "3.8.0"
 ksp = "2.3.13"
 
 [libraries]
@@ -46,6 +48,11 @@ ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serializatio
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
+# Supabase (cuentas, base de datos remota y tiempo real)
+supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
+supabase-auth = { group = "io.github.jan-tennert.supabase", name = "auth-kt" }
+supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 

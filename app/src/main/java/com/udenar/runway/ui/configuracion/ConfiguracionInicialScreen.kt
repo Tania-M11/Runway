@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -41,9 +40,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.udenar.runway.domain.Nivel
 import com.udenar.runway.domain.PreferenciaDesnivel
+import com.udenar.runway.ui.components.AvatarImagen
 import com.udenar.runway.ui.components.BotonCircular
 import com.udenar.runway.ui.components.BotonRunway
-import com.udenar.runway.ui.components.CampoTexto
 import com.udenar.runway.ui.components.EstiloBoton
 import com.udenar.runway.ui.components.TarjetaOpcion
 import com.udenar.runway.ui.theme.Espacio
@@ -52,7 +51,11 @@ import com.udenar.runway.ui.ubicacion.rememberPedirPermisoUbicacion
 
 /** Configuración inicial del corredor (especificación 5.1), en 4 pasos cortos. */
 @Composable
-fun ConfiguracionInicialScreen(vm: ConfiguracionViewModel = viewModel(factory = ConfiguracionViewModel.Factory)) {
+fun ConfiguracionInicialScreen(
+    nombre: String,
+    avatar: String,
+    vm: ConfiguracionViewModel = viewModel(factory = ConfiguracionViewModel.Factory),
+) {
     val estado by vm.estado.collectAsStateWithLifecycle()
     val foco = LocalFocusManager.current
     // Sea cual sea la respuesta al permiso, se termina: sin permiso se explora el mapa a mano
@@ -97,24 +100,10 @@ fun ConfiguracionInicialScreen(vm: ConfiguracionViewModel = viewModel(factory = 
                 verticalArrangement = Arrangement.spacedBy(Espacio.m),
             ) {
                 when (paso) {
-                    PasoConfiguracion.Nombre -> {
-                        Encabezado(
-                            Icons.AutoMirrored.Outlined.DirectionsRun,
-                            "Te damos la bienvenida a RUNWAY",
-                            "Planifica recorridos a tu medida, registra tus carreras y descubre nuevos caminos. ¿Cómo te llamamos?",
-                        )
-                        CampoTexto(
-                            valor = estado.nombre,
-                            onValor = vm::onNombre,
-                            etiqueta = "Nombre o alias",
-                            ayuda = "${estado.nombre.length}/$MAX_NOMBRE",
-                            onListo = {
-                                foco.clearFocus()
-                                vm.siguiente()
-                            },
-                        )
-                    }
                     PasoConfiguracion.Nivel -> {
+                        AvatarImagen(avatar, tamano = 88.dp)
+                        Spacer(Modifier.height(Espacio.s))
+                        Text("¡Hola, $nombre!", style = MaterialTheme.typography.labelLarge, color = Runway.MoradoOscuro)
                         Encabezado(null, "¿Cuál es tu nivel?", "Así te proponemos distancias alcanzables.")
                         Nivel.entries.forEach { n ->
                             TarjetaOpcion(n.etiqueta, n.descripcion, estado.nivel == n, onClick = { vm.onNivel(n) })

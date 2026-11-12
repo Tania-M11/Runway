@@ -3,11 +3,32 @@ package com.udenar.runway.ui
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
+import com.udenar.runway.R
+import com.udenar.runway.ui.acceso.AccesoScreen
+import com.udenar.runway.ui.components.EstadoVacio
+import com.udenar.runway.ui.perfil.PerfilScreen
+import com.udenar.runway.ui.theme.Espacio
+import io.github.jan.supabase.auth.status.SessionStatus
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.udenar.runway.RunwayApp
@@ -63,17 +84,61 @@ import com.udenar.runway.ui.theme.Runway
 @Composable
 fun RunwayRaiz() {
     val contenedor = (LocalContext.current.applicationContext as RunwayApp).contenedor
+    val sesion by contenedor.cuenta.estadoSesion.collectAsStateWithLifecycle()
     val perfil by contenedor.preferenciasPerfil.perfil.collectAsStateWithLifecycle()
-    val actual = perfil
-    if (actual == null) {
-        ConfiguracionInicialScreen()
-    } else {
-        Principal(nombre = actual.nombre)
+
+    when (val s = sesion) {
+        is SessionStatus.Initializing -> PantallaCarga()
+        is SessionStatus.NotAuthenticated -> AccesoScreen()
+        is SessionStatus.Authenticated, is SessionStatus.RefreshFailure -> {
+            // RefreshFailure = no se pudo renovar la sesión (p. ej. sin internet): se sigue con los datos locales
+            val usuarioId = (s as? SessionStatus.Authenticated)?.session?.user?.id ?: perfil?.usuarioId
+            var intento by remember { mutableStateOf(0) }
+            var fallo by remember { mutableStateOf(false) }
+            LaunchedEffect(usuarioId, intento) {
+                fallo = false
+                if (s is SessionStatus.Authenticated) fallo = !contenedor.cuenta.prepararSesion()
+            }
+            val p = perfil
+            when {
+                p != null && p.usuarioId == usuarioId && !p.configurado -> ConfiguracionInicialScreen(nombre = p.nombre, avatar = p.avatar)
+                p != null && p.usuarioId == usuarioId -> Principal(nombre = p.nombre, avatar = p.avatar)
+                fallo -> ErrorPerfil(onReintentar = { intento++ })
+                else -> PantallaCarga()
+            }
+        }
     }
 }
 
 @Composable
-private fun Principal(nombre: String) {
+private fun PantallaCarga() {
+    Box(Modifier.fillMaxSize().background(Runway.Fondo), contentAlignment = Alignment.Center) {
+        Image(painterResource(R.drawable.logo_runway), contentDescription = "RUNWAY", modifier = Modifier.fillMaxWidth(0.6f))
+    }
+}
+
+/** No se pudo traer el perfil del servidor y no hay copia local de esta cuenta. */
+@Composable
+private fun ErrorPerfil(onReintentar: () -> Unit) {
+    val contenedor = (LocalContext.current.applicationContext as RunwayApp).contenedor
+    val alcance = rememberCoroutineScope()
+    Box(Modifier.fillMaxSize().background(Runway.Fondo).padding(Espacio.margen), contentAlignment = Alignment.Center) {
+        EstadoVacio(
+            icono = Icons.Outlined.CloudOff,
+            titulo = "No pudimos cargar tu perfil",
+            texto = "Revisa tu conexión a internet. Necesitamos traer tu perfil la primera vez que entras en este teléfono.",
+            accion = "Reintentar",
+            onAccion = onReintentar,
+        )
+        TextButton(
+            onClick = { alcance.launch { contenedor.cuenta.cerrarSesion() } },
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+        ) { Text("Cerrar sesión", color = Runway.TextoSecundario) }
+    }
+}
+
+@Composable
+private fun Principal(nombre: String, avatar: String) {
     val contenedor = (LocalContext.current.applicationContext as RunwayApp).contenedor
     val sesion by contenedor.sesion.estado.collectAsStateWithLifecycle()
     val datosInicio by remember { datosInicio(contenedor.entrenamientos) }.collectAsStateWithLifecycle(DatosInicio())
@@ -109,6 +174,7 @@ private fun Principal(nombre: String) {
                     onEmpezar = { irA(Seccion.Entrenar) },
                     onMisRutas = { irA(Seccion.MisRutas) },
                     nombre = nombre,
+                    avatar = avatar,
                     entrenamientoEnCurso = sesion.enCurso,
                     onVolverEntrenamiento = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } },
                     datos = datosInicio,
@@ -176,13 +242,7 @@ private fun Principal(nombre: String) {
                     onEntrenar = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } },
                 )
             }
-            composable<RutaPerfil> {
-                PantallaEnConstruccion(
-                    "Perfil",
-                    Icons.Outlined.Person,
-                    "Aquí podrás editar tu nombre, nivel y preferencia de desnivel.",
-                )
-            }
+            composable<RutaPerfil> { PerfilScreen() }
         }
     }
 }

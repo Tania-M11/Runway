@@ -80,6 +80,11 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // Supabase: cuentas y base de datos remota
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.postgrest)
+
     // Red
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
