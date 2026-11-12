@@ -2,6 +2,13 @@ package com.udenar.runway.data.lugares
 
 import com.udenar.runway.domain.Coordenada
 import com.udenar.runway.domain.Lugar
+import com.udenar.runway.domain.LugarSugerido
+import com.udenar.runway.domain.distanciaKm
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import java.util.Locale
+import kotlin.math.cos
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -37,8 +44,46 @@ class BuscadorLugares(private val http: HttpClient) {
         return respuesta.aLugares().firstOrNull()?.copy(coordenada = punto)
     }
 
+    /**
+     * Lugares para correr hasta ellos alrededor de [centro]: parques, plazas, estadios,
+     * miradores y polideportivos de OpenStreetMap, dentro de un recuadro de [radioKm].
+     */
+    suspend fun lugaresCercanos(centro: Coordenada, radioKm: Double): List<LugarSugerido> = coroutineScope {
+        val dLat = radioKm / 111.0
+        val dLon = radioKm / (111.0 * cos(Math.toRadians(centro.lat)).coerceAtLeast(0.2))
+        val recuadro = String.format(
+            Locale.US, "%.6f,%.6f,%.6f,%.6f",
+            centro.lon - dLon, centro.lat - dLat, centro.lon + dLon, centro.lat + dLat,
+        )
+        CATEGORIAS.map { (palabra, etiqueta, tipo) ->
+            async {
+                runCatching {
+                    val r: RespuestaPhoton = http.get("$BASE/api/") {
+                        parameter("q", palabra)
+                        parameter("bbox", recuadro)
+                        parameter("osm_tag", etiqueta)
+                        parameter("limit", 15)
+                    }.body()
+                    r.aLugares().map { LugarSugerido(it, tipo, distanciaKm(centro, it.coordenada)) }
+                }.getOrDefault(emptyList())
+            }
+        }.awaitAll().flatten()
+    }
+
     private companion object {
         const val BASE = "https://photon.komoot.io"
+
+        /** (palabra de búsqueda, etiqueta OSM, nombre del tipo para mostrar) */
+        val CATEGORIAS = listOf(
+            Triple("parque", "leisure:park", "Parque"),
+            Triple("plaza", "place:square", "Plaza"),
+            Triple("estadio", "leisure:stadium", "Estadio"),
+            Triple("mirador", "tourism:viewpoint", "Mirador"),
+            Triple("polideportivo", "leisure:sports_centre", "Deportivo"),
+            Triple("iglesia", "amenity:place_of_worship", "Iglesia"),
+            Triple("universidad", "amenity:university", "Universidad"),
+            Triple("santuario", "tourism:attraction", "Atractivo"),
+        )
     }
 }
 

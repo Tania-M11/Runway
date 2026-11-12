@@ -61,6 +61,7 @@ fun PantallaDetalleRuta(
     colorHex: String,
     inicioNombre: String,
     finNombre: String?,
+    destino: com.udenar.runway.domain.Coordenada? = null,
     comandos: Flow<ComandoMapa>,
     onMapaListo: () -> Unit,
     onVolver: () -> Unit,
@@ -75,7 +76,8 @@ fun PantallaDetalleRuta(
                 MapaRunway(
                     camaraInicial = camara,
                     puntoSeleccionado = ruta.inicio,
-                    finRuta = ruta.fin.takeIf { ruta.modalidad == Modalidad.Lineal },
+                    finRuta = ruta.fin.takeIf { ruta.modalidad == Modalidad.Lineal && destino == null },
+                    destinoRuta = destino,
                     rutas = listOf(TrazoRuta(ruta.id, ruta.puntos, colorHex, seleccionada = true)),
                     comandos = comandos,
                     onEstiloCargado = onMapaListo,

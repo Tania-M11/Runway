@@ -46,6 +46,19 @@ Valhalla calcula caminos entre puntos, pero no "un circuito de 5 km". `data/ruta
 - Si Android cierra la app a mitad de un entrenamiento, al abrirla de nuevo se recupera desde SQLite como pausado (y si el sistema reinicia el servicio, sigue registrando).
 - La base de datos pasó a la versión 2 con una migración automática de Room: las rutas guardadas se conservan.
 
+## MapController: `ui/mapa/ControladorMapa.kt`
+
+La guía de recursos describe al controlador del mapa (GoogleMap / MapController) como lo que permite *personalizar el estado inicial del mapa, añadir marcadores, trazar rutas y gestionar superposiciones (overlays) o anotaciones*. En RUNWAY esas cuatro operaciones están en una sola clase que envuelve al controlador del motor (`MapLibreMap`):
+
+| Operación | Método | Dónde se ve en la app |
+|---|---|---|
+| Estado inicial | `configurarEstadoInicial` | Cámara, zoom mínimo y máximo y brújula al abrir cualquier mapa |
+| Marcadores | `mostrarMarcador`, `mostrarLugares`, `mostrarAmigos` | Inicio (lima), destino (bandera), mi posición, lugares sugeridos y avatares de amigos |
+| Rutas | `trazarRutas` | Alternativas en colores, trazado GPS en vivo, ruta de referencia |
+| Superposiciones | `mostrarSuperposiciones` | Círculo con el alcance de la distancia al elegir destino; área descargada (parte 12) |
+
+Además ejecuta las órdenes de cámara (mover, encuadrar) y registra los eventos: toque, toque sobre una ruta o un marcador (`queryRenderedFeatures`), cámara detenida y arrastre.
+
 ## Estructura
 
 ```
@@ -77,7 +90,10 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 8 | Cuentas: bienvenida, registro con avatar, inicio de sesión, perfil con código de amigo | Acceso, 5.12 | Hecha |
 | 9 | Sincronización de rutas y entrenamientos con Supabase (WorkManager) | 7 | Hecha |
 | 10 | Amigos por código con aceptación y ubicación en vivo mientras entrenan (Realtime) | — | Hecha |
-| 11 | Perfil editable y pruebas de campo | 5.12 | |
+| 11 | Destino y sugerencias: elegir a dónde llegar (mapa con pin central, búsqueda o lugares sugeridos a la distancia pedida), rutas alternativas hacia el destino; ControladorMapa | 5.4–5.6 | Hecha |
+| 12 | Mapas sin conexión de la zona de una ruta | 5.3 | |
+| 13 | Guía en vivo: mapa orientado, progreso sobre la ruta, km restantes y aviso de desvío | 5.7 | |
+| 14 | Perfil editable y pruebas de campo | 5.12 | |
 
 ## Backend (Supabase)
 

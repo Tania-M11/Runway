@@ -22,6 +22,8 @@ data class ParametrosRuta(
     val modalidad: Modalidad,
     val nivel: Nivel,
     val desnivel: PreferenciaDesnivel,
+    /** Destino opcional: si está, las rutas llegan a él (lineal) o pasan por él (circular). */
+    val destino: Lugar? = null,
 )
 
 enum class Exigencia(val etiqueta: String) { Suave("Suave"), Moderada("Moderada"), Exigente("Exigente") }

@@ -62,6 +62,9 @@ import com.udenar.runway.ui.inicio.datosInicio
 import androidx.navigation.toRoute
 import com.udenar.runway.ui.rutas.RutaGuardadaScreen
 import com.udenar.runway.ui.planificar.DetalleRutaScreen
+import com.udenar.runway.ui.planificar.ElegirPuntoScreen
+import com.udenar.runway.ui.planificar.ObjetivoPunto
+import com.udenar.runway.ui.navegacion.RutaElegirPunto
 import com.udenar.runway.ui.planificar.PlanificadorViewModel
 import com.udenar.runway.ui.planificar.PlanificarScreen
 import com.udenar.runway.ui.planificar.ResultadosScreen
@@ -185,14 +188,27 @@ private fun Principal(nombre: String, avatar: String) {
                 )
             }
             composable<RutaExplorar> {
-                ExplorarScreen(onPlanificar = { lugar -> nav.navigate(GrafoPlanificar.desde(lugar)) })
+                ExplorarScreen(
+                    onPlanificar = { lugar -> nav.navigate(GrafoPlanificar.desde(lugar)) },
+                    onLlegarHasta = { lugar -> nav.navigate(GrafoPlanificar.hasta(lugar)) },
+                )
             }
 
             // Planificar → Resultados → Detalle comparten un ViewModel del grafo
             navigation<GrafoPlanificar>(startDestination = RutaPlanificar) {
                 composable<RutaPlanificar> { entrada ->
                     val vm = vmPlanificador(nav, entrada)
-                    PlanificarScreen(vm, onVolver = { nav.popBackStack() }, onBuscar = { nav.navigate(RutaResultados) })
+                    PlanificarScreen(
+                        vm,
+                        onVolver = { nav.popBackStack() },
+                        onBuscar = { nav.navigate(RutaResultados) },
+                        onElegirPunto = { objetivo -> nav.navigate(RutaElegirPunto(objetivo.name)) },
+                    )
+                }
+                composable<RutaElegirPunto> { entrada ->
+                    val vm = vmPlanificador(nav, entrada)
+                    val objetivo = ObjetivoPunto.valueOf(entrada.toRoute<RutaElegirPunto>().objetivo)
+                    ElegirPuntoScreen(vm, objetivo, onListo = { nav.popBackStack() })
                 }
                 composable<RutaResultados> { entrada ->
                     val vm = vmPlanificador(nav, entrada)

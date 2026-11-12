@@ -1,6 +1,7 @@
 package com.udenar.runway.data.rutas
 
 import com.udenar.runway.domain.Coordenada
+import com.udenar.runway.domain.Destinos
 import com.udenar.runway.domain.Modalidad
 import com.udenar.runway.domain.ParametrosRuta
 import com.udenar.runway.domain.Recomendador
@@ -37,6 +38,7 @@ sealed interface ResultadoPlan {
 class PlanificadorRutas(private val valhalla: ClienteValhalla) {
 
     suspend fun generar(p: ParametrosRuta, alAvanzar: (paso: Int, total: Int) -> Unit = { _, _ -> }): ResultadoPlan {
+        p.destino?.let { return generarConDestino(p, it.coordenada, it.nombre, alAvanzar) }
         val candidatas = mutableListOf<RutaCandidata>()
         var fallosDeRed = 0
         var sinCamino = 0
@@ -76,15 +78,68 @@ class PlanificadorRutas(private val valhalla: ClienteValhalla) {
         }
     }
 
+    /**
+     * Rutas hacia un destino elegido por el corredor.
+     * - **Lineal:** la ruta directa más las alternativas que propone Valhalla.
+     * - **Circular:** ida y vuelta pasando por el destino, más dos variantes que regresan
+     *   por otro lado (con un punto de desvío a la izquierda y a la derecha).
+     */
+    private suspend fun generarConDestino(
+        p: ParametrosRuta,
+        destino: Coordenada,
+        nombreDestino: String,
+        alAvanzar: (Int, Int) -> Unit,
+    ): ResultadoPlan {
+        val inicio = p.inicio.coordenada
+        val uso = Recomendador.usoCuestas(p.desnivel)
+        val candidatas = mutableListOf<RutaCandidata>()
+        var fallosDeRed = 0
+        var sinCamino = 0
+        val intentos: List<Pair<String, List<Coordenada>>> = when (p.modalidad) {
+            Modalidad.Lineal -> listOf("Hacia $nombreDestino" to listOf(inicio, destino))
+            Modalidad.Circular -> listOf(
+                "Ida y vuelta a $nombreDestino" to listOf(inicio, destino, inicio),
+                "Vuelta por la derecha" to listOf(inicio, destino, Destinos.puntoDesvio(inicio, destino, 1), inicio),
+                "Vuelta por la izquierda" to listOf(inicio, destino, Destinos.puntoDesvio(inicio, destino, -1), inicio),
+            )
+        }
+        val rumbo = Destinos.rumbo(inicio, destino)
+        intentos.forEachIndexed { i, (nombre, puntos) ->
+            alAvanzar(i + 1, intentos.size)
+            val respuesta = try {
+                consultar(puntos, uso, alternativas = if (p.modalidad == Modalidad.Lineal) 2 else 0)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ClientRequestException) {
+                sinCamino++
+                null
+            } catch (e: Exception) {
+                fallosDeRed++
+                null
+            } ?: return@forEachIndexed
+            candidatas += construir(respuesta, p, rumbo, id = "destino-$i").copy(nombre = nombre)
+            respuesta.alternates.forEachIndexed { j, alt ->
+                candidatas += construir(RespuestaValhalla(alt.trip), p, rumbo, id = "destino-$i-alt$j")
+                    .copy(nombre = "Alternativa ${j + 1} hacia $nombreDestino")
+            }
+        }
+        val unicas = candidatas.distinctBy { (it.distanciaKm * 20).toInt() to it.calles.take(2) }
+        return when {
+            unicas.isNotEmpty() -> ResultadoPlan.Rutas(unicas.sortedByDescending { it.puntuacion })
+            fallosDeRed > sinCamino -> ResultadoPlan.ErrorServicio
+            else -> ResultadoPlan.SinRutas
+        }
+    }
+
     /** Una consulta con un reintento si el servidor público pide esperar (429). */
-    private suspend fun consultar(puntos: List<Coordenada>, usoCuestas: Double): RespuestaValhalla {
+    private suspend fun consultar(puntos: List<Coordenada>, usoCuestas: Double, alternativas: Int = 0): RespuestaValhalla {
         delay(PAUSA_MS) // ser amables con el servidor público de demostración
         return try {
-            valhalla.ruta(puntos, usoCuestas)
+            valhalla.ruta(puntos, usoCuestas, alternativas)
         } catch (e: ClientRequestException) {
             if (e.response.status != HttpStatusCode.TooManyRequests) throw e
             delay(1_500)
-            valhalla.ruta(puntos, usoCuestas)
+            valhalla.ruta(puntos, usoCuestas, alternativas)
         }
     }
 

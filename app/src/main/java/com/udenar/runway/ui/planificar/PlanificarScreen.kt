@@ -19,6 +19,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Search
@@ -62,7 +66,12 @@ private val DISTANCIAS_RAPIDAS = listOf(3.0, 5.0, 10.0, 21.0)
 
 /** Planificar ruta (especificación 5.4). */
 @Composable
-fun PlanificarScreen(vm: PlanificadorViewModel, onVolver: () -> Unit, onBuscar: () -> Unit) {
+fun PlanificarScreen(
+    vm: PlanificadorViewModel,
+    onVolver: () -> Unit,
+    onBuscar: () -> Unit,
+    onElegirPunto: (ObjetivoPunto) -> Unit,
+) {
     val e by vm.estado.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val foco = LocalFocusManager.current
@@ -96,7 +105,13 @@ fun PlanificarScreen(vm: PlanificadorViewModel, onVolver: () -> Unit, onBuscar: 
             // --- Punto de inicio
             Seccion("Punto de inicio")
             val origenes = OrigenInicio.entries.filter { it != OrigenInicio.PuntoMapa || e.puntoMapa != null }
-            GrupoOpciones(origenes, e.origen, { it.etiqueta }, onSeleccion = vm::elegirOrigen)
+            GrupoOpciones(origenes, e.origen, { it.etiqueta }, onSeleccion = { o ->
+                vm.elegirOrigen(o)
+                if (o == OrigenInicio.Mapa) {
+                    vm.abrirSelector(ObjetivoPunto.Inicio)
+                    onElegirPunto(ObjetivoPunto.Inicio)
+                }
+            })
             Spacer(Modifier.height(Espacio.m))
             when {
                 e.origen == OrigenInicio.Buscar && e.inicio == null -> {
@@ -130,12 +145,96 @@ fun PlanificarScreen(vm: PlanificadorViewModel, onVolver: () -> Unit, onBuscar: 
                 e.inicio != null -> TarjetaInicio(
                     nombre = e.inicio!!.nombre,
                     detalle = e.inicio!!.detalle,
-                    onCambiar = if (e.origen == OrigenInicio.Buscar) ({ vm.elegirOrigen(OrigenInicio.Buscar) }) else null,
+                    onCambiar = when (e.origen) {
+                        OrigenInicio.Buscar -> ({ vm.elegirOrigen(OrigenInicio.Buscar) })
+                        OrigenInicio.Mapa -> ({
+                            vm.abrirSelector(ObjetivoPunto.Inicio)
+                            onElegirPunto(ObjetivoPunto.Inicio)
+                        })
+                        else -> null
+                    },
                 )
+            }
+
+            // --- Destino (opcional): elegirlo en el mapa, buscarlo o tocar una sugerencia
+            Seccion("Destino (opcional)")
+            GrupoOpciones(OrigenDestino.entries, e.origenDestino, { it.etiqueta }, onSeleccion = { o ->
+                vm.elegirOrigenDestino(o)
+                if (o == OrigenDestino.Mapa) {
+                    vm.abrirSelector(ObjetivoPunto.Destino)
+                    onElegirPunto(ObjetivoPunto.Destino)
+                }
+            })
+            Spacer(Modifier.height(Espacio.m))
+            val destinoElegido = e.destino
+            when {
+                destinoElegido != null -> TarjetaDestino(
+                    nombre = destinoElegido.nombre,
+                    detalle = e.inicio?.let { i ->
+                        "A ${formatoKm(com.udenar.runway.domain.distanciaKm(i.coordenada, destinoElegido.coordenada))} km en línea recta"
+                    } ?: destinoElegido.detalle,
+                    onCambiar = {
+                        vm.abrirSelector(ObjetivoPunto.Destino)
+                        onElegirPunto(ObjetivoPunto.Destino)
+                    },
+                    onQuitar = vm::quitarDestino,
+                )
+                e.origenDestino == OrigenDestino.Buscar -> {
+                    BarraBusqueda(e.consultaDestino, vm::onConsultaDestino, "¿A dónde quieres llegar?")
+                    when {
+                        e.buscandoDestino -> EstadoCargando("Buscando lugares…")
+                        e.lugaresDestino.isNotEmpty() -> TarjetaRunway(Modifier.fillMaxWidth().padding(top = Espacio.s), relleno = 0.dp) {
+                            e.lugaresDestino.forEachIndexed { i, lugar ->
+                                FilaLugar(lugar) {
+                                    foco.clearFocus()
+                                    vm.elegirLugarDestino(lugar)
+                                }
+                                if (i < e.lugaresDestino.lastIndex) HorizontalDivider(color = Runway.Borde)
+                            }
+                        }
+                    }
+                }
+            }
+            if (destinoElegido == null && e.inicio != null) {
+                Text(
+                    "Sugeridos para tus ${formatoKm(e.distanciaKm)} km (${e.modalidad.etiqueta.lowercase()})",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = Espacio.m, bottom = Espacio.s),
+                )
+                when {
+                    e.cargandoSugerencias -> EstadoCargando("Buscando parques y plazas a esa distancia…")
+                    e.sugerencias.isEmpty() -> Text(
+                        "No encontramos parques ni plazas a esa distancia. Prueba con otra distancia o elige en el mapa.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Runway.TextoSecundario,
+                    )
+                    else -> {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(Espacio.s)) {
+                            items(e.sugerencias, key = { idSugerencia(it) }) { s -> ChipSugerencia(s) { vm.elegirSugerencia(s) } }
+                        }
+                        androidx.compose.material3.TextButton(onClick = {
+                            vm.abrirSelector(ObjetivoPunto.Destino)
+                            onElegirPunto(ObjetivoPunto.Destino)
+                        }) { Text("Ver sugerencias en el mapa", color = Runway.MoradoOscuro) }
+                    }
+                }
             }
 
             // --- Distancia objetivo
             Seccion("Distancia")
+            val conDestino = e.distanciaConDestinoKm
+            if (conDestino != null) {
+                // Con destino, la distancia la marca el camino hasta él (y de vuelta si es circular)
+                TarjetaRunway(Modifier.fillMaxWidth(), color = Runway.LavandaClaro, relleno = Espacio.l) {
+                    Text("≈ ${formatoKm(conDestino)} km", style = MaterialTheme.typography.headlineMedium)
+                    Text(
+                        if (e.modalidad == Modalidad.Lineal) "Distancia aproximada hasta tu destino."
+                        else "Distancia aproximada de ida y vuelta pasando por tu destino.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Runway.TextoSecundario,
+                    )
+                }
+            } else {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 BotonCircular(Icons.Outlined.Remove, "Menos distancia", onClick = { vm.onDistancia(e.distanciaKm - 0.5) })
                 Row(
@@ -155,6 +254,8 @@ fun PlanificarScreen(vm: PlanificadorViewModel, onVolver: () -> Unit, onBuscar: 
                 { "${it.toInt()} km" },
                 onSeleccion = vm::onDistancia,
             )
+
+            }
 
             // --- Modalidad
             Seccion("Modalidad")
@@ -197,6 +298,24 @@ fun PlanificarScreen(vm: PlanificadorViewModel, onVolver: () -> Unit, onBuscar: 
                 habilitado = e.puedeBuscar,
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+}
+
+@Composable
+private fun TarjetaDestino(nombre: String, detalle: String, onCambiar: () -> Unit, onQuitar: () -> Unit) {
+    TarjetaRunway(Modifier.fillMaxWidth(), relleno = Espacio.l) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = RoundedCornerShape(Espacio.radioPequeno), color = Runway.Texto, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Outlined.Flag, null, tint = Runway.Lima, modifier = Modifier.padding(10.dp))
+            }
+            Spacer(Modifier.width(Espacio.m))
+            Column(Modifier.weight(1f)) {
+                Text(nombre, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(detalle, style = MaterialTheme.typography.bodySmall, color = Runway.TextoSecundario, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            androidx.compose.material3.TextButton(onClick = onCambiar) { Text("Cambiar", color = Runway.Morado) }
+            BotonCircular(Icons.Outlined.Close, "Quitar destino", onClick = onQuitar, tamano = 36.dp)
         }
     }
 }

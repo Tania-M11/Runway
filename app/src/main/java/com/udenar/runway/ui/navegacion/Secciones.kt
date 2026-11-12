@@ -29,11 +29,21 @@ data class GrafoPlanificar(
     val lon: String? = null,
     val nombre: String? = null,
     val detalle: String? = null,
+    val destinoLat: String? = null,
+    val destinoLon: String? = null,
+    val destinoNombre: String? = null,
+    val destinoDetalle: String? = null,
 ) {
     fun lugar(): Lugar? {
         val la = lat?.toDoubleOrNull() ?: return null
         val lo = lon?.toDoubleOrNull() ?: return null
         return Lugar(nombre ?: "Punto del mapa", detalle.orEmpty(), Coordenada(la, lo))
+    }
+
+    fun destino(): Lugar? {
+        val la = destinoLat?.toDoubleOrNull() ?: return null
+        val lo = destinoLon?.toDoubleOrNull() ?: return null
+        return Lugar(destinoNombre ?: "Destino", destinoDetalle.orEmpty(), Coordenada(la, lo))
     }
 
     companion object {
@@ -43,8 +53,19 @@ data class GrafoPlanificar(
             lugar.nombre,
             lugar.detalle,
         )
+
+        /** Planificar desde mi ubicación hasta [destino]. */
+        fun hasta(destino: Lugar) = GrafoPlanificar(
+            destinoLat = destino.coordenada.lat.toString(),
+            destinoLon = destino.coordenada.lon.toString(),
+            destinoNombre = destino.nombre,
+            destinoDetalle = destino.detalle,
+        )
     }
 }
+
+/** Selector de punto con pin fijo al centro ("inicio" o "destino"). */
+@Serializable data class RutaElegirPunto(val objetivo: String)
 
 @Serializable data object RutaPlanificar
 @Serializable data object RutaResultados

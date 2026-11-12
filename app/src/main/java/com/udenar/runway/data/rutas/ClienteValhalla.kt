@@ -25,7 +25,7 @@ class ClienteValhalla(private val http: HttpClient) {
      * Ruta peatonal que pasa por [puntos] en orden. Los intermedios son "through":
      * el recorrido los atraviesa sin dar media vuelta (útil para circuitos).
      */
-    suspend fun ruta(puntos: List<Coordenada>, usoCuestas: Double): RespuestaValhalla {
+    suspend fun ruta(puntos: List<Coordenada>, usoCuestas: Double, alternativas: Int = 0): RespuestaValhalla {
         val cuerpo = buildJsonObject {
             putJsonArray("locations") {
                 puntos.forEachIndexed { i, p ->
@@ -46,6 +46,8 @@ class ClienteValhalla(private val http: HttpClient) {
                     put("use_ferry", 0.0)
                 }
             }
+            // Valhalla puede proponer rutas alternativas entre dos puntos (no con intermedios)
+            if (alternativas > 0 && puntos.size == 2) put("alternates", alternativas)
             put("units", "kilometers")
             put("elevation_interval", INTERVALO_ELEVACION_M)
             put("directions_type", "maneuvers")
@@ -64,7 +66,13 @@ class ClienteValhalla(private val http: HttpClient) {
 }
 
 @Serializable
-data class RespuestaValhalla(val trip: ViajeValhalla)
+data class RespuestaValhalla(
+    val trip: ViajeValhalla,
+    val alternates: List<AlternativaValhalla> = emptyList(),
+)
+
+@Serializable
+data class AlternativaValhalla(val trip: ViajeValhalla)
 
 @Serializable
 data class ViajeValhalla(val legs: List<TramoValhalla>, val summary: ResumenValhalla)

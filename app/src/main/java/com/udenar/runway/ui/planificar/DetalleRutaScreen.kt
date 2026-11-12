@@ -59,6 +59,7 @@ fun DetalleRutaScreen(
         colorHex = colorDeRuta(e.rutas.indexOf(ruta)),
         inicioNombre = e.inicio?.nombre ?: ruta.inicio.texto(),
         finNombre = e.nombreFin,
+        destino = e.destino?.coordenada,
         comandos = vm.comandosMapa,
         onMapaListo = vm::encuadrarSeleccionada,
         onVolver = onVolver,

@@ -16,7 +16,11 @@ import com.udenar.runway.data.rutas.PlanificadorRutas
 import com.udenar.runway.data.rutas.ResultadoPlan
 import com.udenar.runway.data.ubicacion.RepositorioUbicacion
 import com.udenar.runway.domain.Coordenada
+import com.udenar.runway.domain.Destinos
 import com.udenar.runway.domain.Lugar
+import com.udenar.runway.domain.LugarSugerido
+import com.udenar.runway.domain.destino
+import com.udenar.runway.domain.distanciaKm
 import com.udenar.runway.domain.Modalidad
 import com.udenar.runway.domain.Nivel
 import com.udenar.runway.domain.ParametrosRuta
@@ -32,7 +36,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -40,9 +47,26 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 enum class OrigenInicio(val etiqueta: String) {
     MiUbicacion("Mi ubicación"),
-    PuntoMapa("Punto del mapa"),
+    PuntoMapa("Punto de Explorar"),
+    Mapa("Elegir en el mapa"),
     Buscar("Buscar lugar"),
 }
+
+/** Cómo se elige el destino (opcional). */
+enum class OrigenDestino(val etiqueta: String) {
+    Ninguno("Sin destino"),
+    Mapa("Elegir en el mapa"),
+    Buscar("Buscar lugar"),
+}
+
+enum class ObjetivoPunto { Inicio, Destino }
+
+/** Estado del selector de punto con pin fijo en el centro del mapa. */
+data class SelectorPunto(
+    val objetivo: ObjetivoPunto,
+    val centro: Coordenada? = null,
+    val nombre: String? = null,
+)
 
 enum class AvisoInicio { SinPermiso, UbicacionApagada, SinSenal }
 
@@ -64,6 +88,15 @@ data class PlanificadorEstado(
     val consulta: String = "",
     val buscandoLugar: Boolean = false,
     val lugaresEncontrados: List<Lugar> = emptyList(),
+    // Destino (opcional) y sugerencias
+    val origenDestino: OrigenDestino = OrigenDestino.Ninguno,
+    val destino: Lugar? = null,
+    val consultaDestino: String = "",
+    val buscandoDestino: Boolean = false,
+    val lugaresDestino: List<Lugar> = emptyList(),
+    val sugerencias: List<LugarSugerido> = emptyList(),
+    val cargandoSugerencias: Boolean = false,
+    val selector: SelectorPunto? = null,
     // Preferencias del entrenamiento
     val distanciaKm: Double,
     val modalidad: Modalidad,
@@ -80,6 +113,18 @@ data class PlanificadorEstado(
     val guardando: Boolean = false,
 ) {
     val puedeBuscar: Boolean get() = inicio != null && calculo !is EstadoCalculo.Calculando
+
+    /** Radio en línea recta al que conviene buscar destinos para la distancia pedida. */
+    val radioIdealKm: Double get() = Destinos.radioIdealKm(distanciaKm, modalidad)
+
+    /** Distancia aproximada del recorrido cuando hay destino (la marca el destino, no el selector). */
+    val distanciaConDestinoKm: Double?
+        get() {
+            val a = inicio?.coordenada ?: return null
+            val b = destino?.coordenada ?: return null
+            val recta = distanciaKm(a, b) * 1.3
+            return if (modalidad == Modalidad.Lineal) recta else recta * 2
+        }
     val rutaSeleccionada: RutaCandidata? get() = rutas.firstOrNull { it.id == seleccionada }
 }
 
@@ -102,6 +147,7 @@ class PlanificadorViewModel(
 ) : ViewModel() {
 
     private val puntoRecibido: Lugar? = argumentos.lugar()
+    private val destinoRecibido: Lugar? = argumentos.destino()
 
     private val _estado = MutableStateFlow(
         perfil.perfil.value.let { p ->
@@ -110,6 +156,7 @@ class PlanificadorViewModel(
                 origen = if (puntoRecibido != null) OrigenInicio.PuntoMapa else OrigenInicio.MiUbicacion,
                 puntoMapa = puntoRecibido,
                 inicio = puntoRecibido,
+                destino = destinoRecibido,
                 distanciaKm = preferenciasPlan.distanciaKm() ?: Recomendador.distanciaSugerida(nivel),
                 modalidad = preferenciasPlan.modalidad(),
                 nivel = nivel,
@@ -126,8 +173,29 @@ class PlanificadorViewModel(
     private var trabajoBusqueda: Job? = null
     private var trabajoCalculo: Job? = null
 
+    private var trabajoBusquedaDestino: Job? = null
+    private var trabajoNombreCentro: Job? = null
+
     init {
         if (puntoRecibido == null) usarMiUbicacion()
+        // Si se llega con un destino (desde Explorar), lo natural es una ruta lineal hasta él
+        if (destinoRecibido != null) _estado.update { it.copy(modalidad = Modalidad.Lineal) }
+        // Sugerencias: se recalculan al cambiar el inicio, la distancia o la modalidad
+        viewModelScope.launch {
+            _estado.map { Triple(it.inicio?.coordenada, it.distanciaKm, it.modalidad) }
+                .distinctUntilChanged()
+                .collectLatest { (inicio, km, modalidad) ->
+                    if (inicio == null) {
+                        _estado.update { it.copy(sugerencias = emptyList(), cargandoSugerencias = false) }
+                        return@collectLatest
+                    }
+                    delay(600) // espera a que el usuario termine de ajustar la distancia
+                    _estado.update { it.copy(cargandoSugerencias = true) }
+                    val radio = Destinos.radioIdealKm(km, modalidad)
+                    val lista = runCatching { buscador.lugaresCercanos(inicio, radio * 1.6) }.getOrDefault(emptyList())
+                    _estado.update { it.copy(sugerencias = Destinos.filtrar(lista, radio), cargandoSugerencias = false) }
+                }
+        }
     }
 
     // ------------------------------------------------------------ Punto de inicio
@@ -141,6 +209,8 @@ class PlanificadorViewModel(
             OrigenInicio.Buscar -> _estado.update {
                 it.copy(origen = origen, inicio = null, avisoInicio = null, ubicandome = false)
             }
+            // El inicio se conserva hasta que se confirme un punto en el selector
+            OrigenInicio.Mapa -> _estado.update { it.copy(origen = origen, avisoInicio = null, ubicandome = false) }
         }
         if (origen != OrigenInicio.MiUbicacion) trabajoUbicacion?.cancel()
     }
@@ -196,6 +266,96 @@ class PlanificadorViewModel(
         _estado.update { it.copy(inicio = lugar, consulta = "", lugaresEncontrados = emptyList(), buscandoLugar = false) }
     }
 
+    // ------------------------------------------------------------ Destino y sugerencias
+
+    fun elegirOrigenDestino(o: OrigenDestino) = _estado.update {
+        when (o) {
+            OrigenDestino.Ninguno -> it.copy(origenDestino = o, destino = null, consultaDestino = "", lugaresDestino = emptyList())
+            else -> it.copy(origenDestino = o)
+        }
+    }
+
+    fun elegirSugerencia(s: LugarSugerido) = _estado.update {
+        it.copy(destino = s.lugar, consultaDestino = "", lugaresDestino = emptyList())
+    }
+
+    fun quitarDestino() = _estado.update { it.copy(destino = null, origenDestino = OrigenDestino.Ninguno) }
+
+    fun onConsultaDestino(texto: String) {
+        _estado.update { it.copy(consultaDestino = texto) }
+        trabajoBusquedaDestino?.cancel()
+        val limpio = texto.trim()
+        if (limpio.length < 3) {
+            _estado.update { it.copy(lugaresDestino = emptyList(), buscandoDestino = false) }
+            return
+        }
+        trabajoBusquedaDestino = viewModelScope.launch {
+            delay(450)
+            _estado.update { it.copy(buscandoDestino = true) }
+            val cerca = _estado.value.inicio?.coordenada
+            val lista = runCatching { buscador.buscar(limpio, cerca) }.getOrDefault(emptyList())
+            _estado.update { it.copy(lugaresDestino = lista, buscandoDestino = false) }
+        }
+    }
+
+    fun elegirLugarDestino(lugar: Lugar) = _estado.update {
+        it.copy(destino = lugar, consultaDestino = "", lugaresDestino = emptyList(), buscandoDestino = false)
+    }
+
+    // ------------------------------------------------------------ Selector de punto (pin al centro)
+
+    fun abrirSelector(objetivo: ObjetivoPunto) {
+        val e = _estado.value
+        val inicial = when (objetivo) {
+            ObjetivoPunto.Inicio -> e.inicio?.coordenada
+            ObjetivoPunto.Destino -> e.destino?.coordenada
+        }
+        _estado.update { it.copy(selector = SelectorPunto(objetivo, centro = inicial)) }
+    }
+
+    /** Al cargar el mapa del selector: muestra el inicio y el círculo de la distancia objetivo. */
+    fun encuadrarSelector() {
+        val e = _estado.value
+        val s = e.selector ?: return
+        val inicio = e.inicio?.coordenada
+        val puntos = when {
+            s.objetivo == ObjetivoPunto.Destino && inicio != null ->
+                listOf(0.0, 90.0, 180.0, 270.0).map { destino(inicio, it, e.radioIdealKm * 1.1) } + inicio
+            else -> listOfNotNull(s.centro ?: inicio)
+        }
+        if (puntos.isNotEmpty()) _comandos.trySend(ComandoMapa.Encuadrar(puntos, margenPx = 80))
+    }
+
+    /** La cámara se detuvo: el punto elegido es el centro; se busca su nombre. */
+    fun onCentroSelector(c: Coordenada) {
+        _estado.update { it.copy(selector = it.selector?.copy(centro = c, nombre = null)) }
+        trabajoNombreCentro?.cancel()
+        trabajoNombreCentro = viewModelScope.launch {
+            delay(500)
+            val lugar = runCatching { buscador.nombreDe(c) }.getOrNull()
+            _estado.update { e ->
+                if (e.selector?.centro != c) e else e.copy(selector = e.selector.copy(nombre = lugar?.nombre ?: c.texto()))
+            }
+        }
+    }
+
+    /** Confirma el punto del centro (o un lugar sugerido tocado en el mapa). */
+    fun confirmarSelector(sugeridoId: String? = null) {
+        val e = _estado.value
+        val s = e.selector ?: return
+        val lugar = sugeridoId?.let { id -> e.sugerencias.firstOrNull { idSugerencia(it) == id }?.lugar }
+            ?: s.centro?.let { Lugar(s.nombre ?: "Punto elegido", it.texto(), it) }
+            ?: return
+        _estado.update {
+            when (s.objetivo) {
+                ObjetivoPunto.Inicio -> it.copy(inicio = lugar, origen = OrigenInicio.Mapa, selector = null)
+                ObjetivoPunto.Destino -> it.copy(destino = lugar, origenDestino = OrigenDestino.Mapa, selector = null)
+            }
+        }
+    }
+
+    fun cerrarSelector() = _estado.update { it.copy(selector = null) }
+
     // ------------------------------------------------------------ Preferencias
 
     fun onDistancia(km: Double) = _estado.update {
@@ -212,7 +372,7 @@ class PlanificadorViewModel(
         val e = _estado.value
         val inicio = e.inicio ?: return
         preferenciasPlan.guardar(e.distanciaKm, e.modalidad)
-        val parametros = ParametrosRuta(inicio, e.distanciaKm, e.modalidad, e.nivel, e.desnivel)
+        val parametros = ParametrosRuta(inicio, e.distanciaKm, e.modalidad, e.nivel, e.desnivel, destino = e.destino)
         trabajoCalculo?.cancel()
         _estado.update { it.copy(calculo = EstadoCalculo.Calculando(0, 1), rutas = emptyList(), seleccionada = null, nombreFin = null) }
         trabajoCalculo = viewModelScope.launch {
@@ -245,6 +405,11 @@ class PlanificadorViewModel(
     /** Al abrir el detalle: busca el nombre del final si la ruta es lineal. */
     fun prepararDetalle() {
         val ruta = _estado.value.rutaSeleccionada ?: return
+        // Con destino, el final ya tiene nombre
+        _estado.value.destino?.let { d ->
+            if (ruta.modalidad == Modalidad.Lineal) _estado.update { it.copy(nombreFin = d.nombre) }
+            return
+        }
         if (ruta.modalidad == Modalidad.Lineal && _estado.value.nombreFin == null) {
             viewModelScope.launch {
                 val lugar = runCatching { buscador.nombreDe(ruta.fin) }.getOrNull()
@@ -290,3 +455,6 @@ class PlanificadorViewModel(
         }
     }
 }
+
+/** Id estable de una sugerencia para identificarla al tocarla en el mapa. */
+fun idSugerencia(s: LugarSugerido): String = "sug-${s.lugar.coordenada.lat}-${s.lugar.coordenada.lon}"

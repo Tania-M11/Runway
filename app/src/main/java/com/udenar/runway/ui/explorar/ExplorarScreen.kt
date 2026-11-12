@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.LocationSearching
 import androidx.compose.material.icons.outlined.MyLocation
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material3.HorizontalDivider
@@ -79,6 +80,7 @@ import com.udenar.runway.ui.ubicacion.rememberPedirPermisoUbicacion
 @Composable
 fun ExplorarScreen(
     onPlanificar: (Lugar?) -> Unit,
+    onLlegarHasta: (Lugar) -> Unit,
     vm: ExplorarViewModel = viewModel(factory = ExplorarViewModel.Factory),
 ) {
     val estado by vm.estado.collectAsStateWithLifecycle()
@@ -231,7 +233,7 @@ fun ExplorarScreen(
                 exit = slideOutVertically { it } + fadeOut(),
             ) {
                 estado.seleccionado?.let { lugar ->
-                    TarjetaLugar(lugar, onCerrar = vm::quitarSeleccion, onPlanificar = { onPlanificar(lugar) })
+                    TarjetaLugar(lugar, onCerrar = vm::quitarSeleccion, onPlanificar = { onPlanificar(lugar) }, onLlegar = { onLlegarHasta(lugar) })
                 }
             }
         }
@@ -299,7 +301,7 @@ private fun PanelResultados(estado: ExplorarEstado, onElegir: (Lugar) -> Unit) {
 }
 
 @Composable
-private fun TarjetaLugar(lugar: Lugar, onCerrar: () -> Unit, onPlanificar: () -> Unit) {
+private fun TarjetaLugar(lugar: Lugar, onCerrar: () -> Unit, onPlanificar: () -> Unit, onLlegar: () -> Unit) {
     TarjetaRunway(modifier = Modifier.fillMaxWidth(), relleno = Espacio.l) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(Espacio.radioPequeno), color = Runway.LavandaClaro, modifier = Modifier.size(48.dp)) {
@@ -321,12 +323,22 @@ private fun TarjetaLugar(lugar: Lugar, onCerrar: () -> Unit, onPlanificar: () ->
             }
         }
         Spacer(Modifier.height(Espacio.m))
-        BotonRunway(
-            "Planificar desde aquí",
-            onClick = onPlanificar,
-            icono = Icons.Outlined.Route,
-            modifier = Modifier.fillMaxWidth(),
-            alto = 48.dp,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(Espacio.s)) {
+            BotonRunway(
+                "Salir desde aquí",
+                onClick = onPlanificar,
+                icono = Icons.Outlined.Route,
+                modifier = Modifier.weight(1f),
+                alto = 48.dp,
+            )
+            BotonRunway(
+                "Llegar aquí",
+                onClick = onLlegar,
+                estilo = EstiloBoton.Oscuro,
+                icono = Icons.Outlined.Flag,
+                modifier = Modifier.weight(1f),
+                alto = 48.dp,
+            )
+        }
     }
 }

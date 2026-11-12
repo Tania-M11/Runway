@@ -36,4 +36,19 @@ class ValhallaRealTest {
         assertTrue(mejor.distanciaKm in 4.0..6.0)
         assertTrue(mejor.puntos.first().let { kotlin.math.abs(it.lat - 0.8302) < 0.003 })
     }
+
+    @Test
+    fun generaRutasHaciaUnDestino() = runBlocking {
+        assumeTrue(System.getenv("RUNWAY_RED") == "1")
+        val planificador = PlanificadorRutas(ClienteValhalla(crearClienteHttp()))
+        val base = ParametrosRuta(
+            Lugar("Ipiales", "", Coordenada(0.8302, -77.6446)), 5.0, Modalidad.Lineal, Nivel.Intermedio, PreferenciaDesnivel.Plano,
+            destino = Lugar("Plaza La Pola", "", Coordenada(0.8256698, -77.6390149)),
+        )
+        listOf(base, base.copy(modalidad = Modalidad.Circular)).forEach { p ->
+            val r = planificador.generar(p)
+            assertTrue("Resultado: $r", r is ResultadoPlan.Rutas)
+            (r as ResultadoPlan.Rutas).rutas.forEach { println("${p.modalidad}: ${it.nombre} ${formatoKm(it.distanciaKm)} km") }
+        }
+    }
 }

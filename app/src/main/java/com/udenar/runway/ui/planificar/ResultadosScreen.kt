@@ -59,6 +59,7 @@ fun ResultadosScreen(vm: PlanificadorViewModel, onVolver: () -> Unit, onDetalle:
             MapaRunway(
                 camaraInicial = camara,
                 puntoSeleccionado = inicio?.coordenada,
+                destinoRuta = e.destino?.coordenada,
                 rutas = trazos,
                 finRuta = seleccionada?.takeIf { it.modalidad == com.udenar.runway.domain.Modalidad.Lineal }?.fin,
                 comandos = vm.comandosMapa,
@@ -74,7 +75,10 @@ fun ResultadosScreen(vm: PlanificadorViewModel, onVolver: () -> Unit, onDetalle:
                 Spacer(Modifier.width(Espacio.s))
                 Surface(shape = CircleShape, color = Runway.Superficie, shadowElevation = 4.dp) {
                     Text(
-                        "${formatoKm(e.distanciaKm)} km · ${e.modalidad.etiqueta.lowercase()} · ${e.desnivel.etiqueta.lowercase()}",
+                        e.destino?.let { "${e.modalidad.etiqueta} · hasta ${it.nombre}" }
+                            ?: "${formatoKm(e.distanciaKm)} km · ${e.modalidad.etiqueta.lowercase()} · ${e.desnivel.etiqueta.lowercase()}",
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.padding(horizontal = Espacio.l, vertical = Espacio.m),
                     )
