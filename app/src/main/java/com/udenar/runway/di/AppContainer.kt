@@ -20,10 +20,12 @@ import kotlinx.coroutines.withContext
 import com.udenar.runway.data.entrenamiento.SesionEntrenamiento
 import com.udenar.runway.data.entrenamiento.Vibrador
 import com.udenar.runway.data.ubicacion.Brujula
+import com.udenar.runway.data.ubicacion.Satelites
 import com.udenar.runway.data.local.RepositorioEntrenamientos
 import com.udenar.runway.data.local.RepositorioRutas
 import com.udenar.runway.data.local.RunwayDatabase
 import com.udenar.runway.data.lugares.BuscadorLugares
+import com.udenar.runway.data.lugares.GeocodificadorAndroid
 import com.udenar.runway.data.preferencias.PreferenciasMapa
 import com.udenar.runway.data.preferencias.PreferenciasPerfil
 import com.udenar.runway.data.preferencias.PreferenciasPlan
@@ -49,7 +51,7 @@ class AppContainer(context: Context) {
     val monitorConexion by lazy { MonitorConexion(app) }
     val preferenciasMapa by lazy { PreferenciasMapa(app) }
     val preferenciasPerfil by lazy { PreferenciasPerfil(app) }
-    val buscadorLugares by lazy { BuscadorLugares(http) }
+    val buscadorLugares by lazy { BuscadorLugares(http, GeocodificadorAndroid(app)) }
     val ubicacion by lazy { RepositorioUbicacion(app) }
     val preferenciasPlan by lazy { PreferenciasPlan(app) }
     val planificador by lazy { PlanificadorRutas(ClienteValhalla(http)) }
@@ -64,6 +66,7 @@ class AppContainer(context: Context) {
     /** Sesión de entrenamiento única, compartida por la pantalla y el servicio en primer plano. */
     val sesion by lazy { SesionEntrenamiento(app, ubicacion, baseDatos.entrenamientos(), publicador, Vibrador(app)) }
     val brujula by lazy { Brujula(app) }
+    val satelites by lazy { Satelites(app) }
 
     // Supabase: la URL y la clave publicable vienen de local.properties (BuildConfig)
     val supabase by lazy {

@@ -48,6 +48,7 @@ import com.udenar.runway.ui.theme.Espacio
 import com.udenar.runway.ui.theme.Runway
 import com.udenar.runway.ui.ubicacion.abrirAjustesDeUbicacion
 import com.udenar.runway.domain.formatoMetros
+import com.udenar.runway.data.ubicacion.EstadoSatelites
 
 /** Pestaña Entrenar: elegir carrera libre o una ruta guardada y empezar. */
 @Composable
@@ -91,7 +92,7 @@ fun EntrenarScreen(
             return@Column
         }
 
-        TarjetaGps(e.gps, e.precisionM, onActivar = { context.abrirAjustesDeUbicacion() })
+        TarjetaGps(e.gps, e.precisionM, e.satelites, onActivar = { context.abrirAjustesDeUbicacion() })
 
         Text("¿Cómo quieres correr?", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = Espacio.s))
         TarjetaOpcion(
@@ -134,7 +135,7 @@ fun EntrenarScreen(
 }
 
 @Composable
-private fun TarjetaGps(gps: EstadoGps, precision: Float?, onActivar: () -> Unit) {
+private fun TarjetaGps(gps: EstadoGps, precision: Float?, satelites: EstadoSatelites?, onActivar: () -> Unit) {
     val (icono, titulo, texto, color) = when (gps) {
         EstadoGps.Listo -> Cuatro(Icons.Outlined.GpsFixed, "GPS listo", "Precisión de ±${precision?.toInt() ?: "-"} m", Runway.LimaClaro)
         EstadoGps.Debil -> Cuatro(Icons.Outlined.GpsNotFixed, "Señal GPS débil", "Al aire libre la señal mejora en unos segundos", Runway.AvisoClaro)
@@ -151,6 +152,16 @@ private fun TarjetaGps(gps: EstadoGps, precision: Float?, onActivar: () -> Unit)
             Column(Modifier.weight(1f)) {
                 Text(titulo, style = MaterialTheme.typography.titleSmall)
                 Text(texto, style = MaterialTheme.typography.bodySmall, color = Runway.TextoSecundario)
+                // Hardware GNSS: satélites usados de los visibles y por constelación
+                satelites?.takeIf { it.visibles > 0 }?.let { s ->
+                    Text(
+                        "Satélites: ${s.usados} en uso de ${s.visibles} visibles" +
+                            if (s.porSistema.isNotEmpty()) " · " + s.porSistema.entries.sortedByDescending { it.value }
+                                .joinToString(" · ") { "${it.key} ${it.value}" } else "",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Runway.MoradoOscuro,
+                    )
+                }
             }
             if (gps == EstadoGps.Apagado) {
                 androidx.compose.material3.TextButton(onClick = onActivar) { Text("Activar", color = Runway.MoradoOscuro) }

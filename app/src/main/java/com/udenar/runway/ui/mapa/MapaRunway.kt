@@ -74,6 +74,8 @@ fun MapaRunway(
     amigos: List<MarcadorAmigo> = emptyList(),
     lugares: List<MarcadorLugar> = emptyList(),
     superposiciones: List<Superposicion> = emptyList(),
+    /** Edificios en 3D (se ven al inclinar la cámara). */
+    edificios3D: Boolean = true,
     comandos: Flow<ComandoMapa> = emptyFlow(),
     intentoCarga: Int = 0,
     onEstiloCargado: () -> Unit = {},
@@ -165,6 +167,7 @@ fun MapaRunway(
     LaunchedEffect(c, lugares) { c?.mostrarLugares(lugares) }
     LaunchedEffect(c, rutas) { c?.trazarRutas(rutas) }
     LaunchedEffect(c, superposiciones) { c?.mostrarSuperposiciones(superposiciones) }
+    LaunchedEffect(c, edificios3D) { c?.mostrarEdificios3D(edificios3D) }
 
     // Órdenes del ViewModel → controlador (esperan a que el estilo esté listo)
     LaunchedEffect(c) {

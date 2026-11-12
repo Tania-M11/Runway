@@ -202,7 +202,7 @@ private fun Principal(nombre: String, avatar: String) {
                     val vm = vmPlanificador(nav, entrada)
                     PlanificarScreen(
                         vm,
-                        onVolver = { nav.popBackStack() },
+                        onVolver = { nav.volverDesde(entrada) },
                         onBuscar = { nav.navigate(RutaResultados) },
                         onElegirPunto = { objetivo -> nav.navigate(RutaElegirPunto(objetivo.name)) },
                     )
@@ -210,17 +210,17 @@ private fun Principal(nombre: String, avatar: String) {
                 composable<RutaElegirPunto> { entrada ->
                     val vm = vmPlanificador(nav, entrada)
                     val objetivo = ObjetivoPunto.valueOf(entrada.toRoute<RutaElegirPunto>().objetivo)
-                    ElegirPuntoScreen(vm, objetivo, onListo = { nav.popBackStack() })
+                    ElegirPuntoScreen(vm, objetivo, onListo = { nav.volverDesde(entrada) })
                 }
                 composable<RutaResultados> { entrada ->
                     val vm = vmPlanificador(nav, entrada)
-                    ResultadosScreen(vm, onVolver = { nav.popBackStack() }, onDetalle = { nav.navigate(RutaDetalleRuta) })
+                    ResultadosScreen(vm, onVolver = { nav.volverDesde(entrada) }, onDetalle = { nav.navigate(RutaDetalleRuta) })
                 }
                 composable<RutaDetalleRuta> { entrada ->
                     val vm = vmPlanificador(nav, entrada)
                     DetalleRutaScreen(
                         vm,
-                        onVolver = { nav.popBackStack() },
+                        onVolver = { nav.volverDesde(entrada) },
                         onVerMisRutas = { irA(Seccion.MisRutas) },
                         onEntrenar = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } },
                     )
@@ -229,9 +229,9 @@ private fun Principal(nombre: String, avatar: String) {
             composable<RutaEntrenar> {
                 EntrenarScreen(onAbrirEntrenamiento = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } })
             }
-            composable<RutaEntrenamientoActivo> {
+            composable<RutaEntrenamientoActivo> { entrada ->
                 EntrenamientoActivoScreen(
-                    onSalir = { nav.popBackStack() },
+                    onSalir = { nav.volverDesde(entrada) },
                     onFinalizado = { id ->
                         nav.navigate(RutaResumenEntrenamiento(id)) {
                             popUpTo<RutaEntrenamientoActivo> { inclusive = true }
@@ -241,11 +241,11 @@ private fun Principal(nombre: String, avatar: String) {
             }
             composable<RutaResumenEntrenamiento> { entrada ->
                 val nuevo = entrada.toRoute<RutaResumenEntrenamiento>().recienTerminado
-                ResumenEntrenamientoScreen(onListo = { if (nuevo) irA(Seccion.Inicio) else nav.popBackStack() })
+                ResumenEntrenamientoScreen(onListo = { if (nuevo) irA(Seccion.Inicio) else nav.volverDesde(entrada) })
             }
-            composable<RutaHistorial> {
+            composable<RutaHistorial> { entrada ->
                 HistorialScreen(
-                    onVolver = { nav.popBackStack() },
+                    onVolver = { nav.volverDesde(entrada) },
                     onAbrir = { id -> nav.navigate(RutaResumenEntrenamiento(id, recienTerminado = false)) },
                     onEntrenar = { irA(Seccion.Entrenar) },
                 )
@@ -256,19 +256,19 @@ private fun Principal(nombre: String, avatar: String) {
                     onPlanificar = { nav.navigate(GrafoPlanificar()) },
                 )
             }
-            composable<RutaRutaGuardada> {
+            composable<RutaRutaGuardada> { entrada ->
                 RutaGuardadaScreen(
-                    onVolver = { nav.popBackStack() },
+                    onVolver = { nav.volverDesde(entrada) },
                     onEntrenar = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } },
                 )
             }
             composable<RutaPerfil> {
                 PerfilScreen(onAmigos = { nav.navigate(RutaAmigos) }, onMapasOffline = { nav.navigate(RutaMapasOffline) })
             }
-            composable<RutaMapasOffline> { MapasOfflineScreen(onVolver = { nav.popBackStack() }) }
-            composable<RutaAmigos> {
+            composable<RutaMapasOffline> { entrada -> MapasOfflineScreen(onVolver = { nav.volverDesde(entrada) }) }
+            composable<RutaAmigos> { entrada ->
                 val perfil by contenedor.preferenciasPerfil.perfil.collectAsStateWithLifecycle()
-                AmigosScreen(miCodigo = perfil?.codigo.orEmpty(), onVolver = { nav.popBackStack() })
+                AmigosScreen(miCodigo = perfil?.codigo.orEmpty(), onVolver = { nav.volverDesde(entrada) })
             }
         }
     }
@@ -278,4 +278,13 @@ private fun Principal(nombre: String, avatar: String) {
 private fun vmPlanificador(nav: NavHostController, entrada: NavBackStackEntry): PlanificadorViewModel {
     val grafo = remember(entrada) { nav.getBackStackEntry<GrafoPlanificar>() }
     return viewModel(grafo, factory = PlanificadorViewModel.Factory)
+}
+
+/**
+ * "Volver" seguro: solo retrocede si la pantalla que lo pide sigue siendo la actual.
+ * Evita que un doble toque durante la animación de salida saque también la pantalla
+ * de abajo (dejaba Inicio en blanco).
+ */
+private fun NavHostController.volverDesde(entrada: NavBackStackEntry) {
+    if (currentBackStackEntry?.id == entrada.id) popBackStack()
 }

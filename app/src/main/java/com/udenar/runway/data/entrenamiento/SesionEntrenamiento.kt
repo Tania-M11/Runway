@@ -293,8 +293,8 @@ class SesionEntrenamiento(
     private fun actualizarGuia(p: PosicionGps) {
         if (rutaGuia.size < 2 || p.precisionM > FiltroGps.PRECISION_MAX_M) return
         val anterior = _estado.value.guia
-        val proyeccion = Guia.seguir(rutaGuia, acumuladasGuia, p.coordenada, anterior?.proyeccion?.indice)
-        val nueva = Guia.actualizar(anterior, proyeccion, acumuladasGuia.last())
+        val proyeccion = Guia.seguir(rutaGuia, acumuladasGuia, p.coordenada, anterior?.avance?.indice?.takeIf { anterior.avance.recorridoKm > 0 })
+        val nueva = Guia.actualizar(anterior, proyeccion, rutaGuia)
         when {
             !nueva.llegada && nueva.fueraDeRuta && anterior?.fueraDeRuta != true -> vibrador?.desvio()
             !nueva.fueraDeRuta && anterior?.fueraDeRuta == true -> vibrador?.regreso()

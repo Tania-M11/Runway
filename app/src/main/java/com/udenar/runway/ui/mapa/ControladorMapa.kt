@@ -23,7 +23,11 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.FillExtrusionLayer
 import org.maplibre.android.style.layers.FillLayer
+import org.maplibre.android.style.layers.PropertyFactory.fillExtrusionColor
+import org.maplibre.android.style.layers.PropertyFactory.fillExtrusionOpacity
+import org.maplibre.android.style.layers.PropertyFactory.visibility
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.circleColor
@@ -198,6 +202,22 @@ class ControladorMapa(private val mapa: MapLibreMap, private val context: Contex
                     Feature.fromGeometry(Polygon.fromLngLats(listOf(anillo)))
                 },
             ),
+        )
+    }
+
+    // ------------------------------------------------------------------ Renderizado 3D
+
+    /**
+     * Edificios en 3D: el estilo trae una capa `fill-extrusion` que levanta cada edificio con
+     * su altura real de OpenStreetMap. Aquí se enciende o apaga y se tiñe con la paleta de RUNWAY;
+     * el motor la renderiza en la GPU y la muestra al inclinar la cámara.
+     */
+    fun mostrarEdificios3D(activo: Boolean) {
+        val capa = estilo?.getLayerAs<FillExtrusionLayer>(CAPA_EDIFICIOS_3D) ?: return
+        capa.setProperties(
+            visibility(if (activo) Property.VISIBLE else Property.NONE),
+            fillExtrusionColor(Color.parseColor("#D9D4F7")),
+            fillExtrusionOpacity(0.85f),
         )
     }
 
@@ -457,5 +477,7 @@ class ControladorMapa(private val mapa: MapLibreMap, private val context: Contex
         const val FUENTE_DESTINO = "destino"
         const val CAPA_DESTINO = "destino-capa"
         const val ICONO_DESTINO = "icono-destino"
+        /** Capa de edificios extruidos del estilo Liberty de OpenFreeMap. */
+        const val CAPA_EDIFICIOS_3D = "building-3d"
     }
 }

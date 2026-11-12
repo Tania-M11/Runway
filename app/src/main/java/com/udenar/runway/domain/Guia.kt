@@ -17,13 +17,16 @@ data class ProyeccionRuta(
 
 /** Estado de la guía en vivo durante un entrenamiento con ruta de referencia. */
 data class EstadoGuia(
+    /** Punto de la ruta más cercano ahora (sirve para la línea de regreso y el desvío). */
     val proyeccion: ProyeccionRuta,
+    /** Avance real sobre la ruta: solo crece mientras el corredor está en ella. */
+    val avance: ProyeccionRuta,
     val totalKm: Double,
     val fueraDeRuta: Boolean,
     val llegada: Boolean,
 ) {
-    val restanteKm: Double get() = (totalKm - proyeccion.recorridoKm).coerceAtLeast(0.0)
-    val fraccion: Float get() = if (totalKm <= 0) 0f else (proyeccion.recorridoKm / totalKm).toFloat().coerceIn(0f, 1f)
+    val restanteKm: Double get() = (totalKm - avance.recorridoKm).coerceAtLeast(0.0)
+    val fraccion: Float get() = if (totalKm <= 0) 0f else (avance.recorridoKm / totalKm).toFloat().coerceIn(0f, 1f)
 }
 
 /**
@@ -94,13 +97,23 @@ object Guia {
         return if (local.desvioM <= 60) local else proyectar(ruta, acumuladas, p)
     }
 
-    /** Actualiza el estado de la guía con histéresis: avisa al salir (>30 m) y al volver (<20 m). */
-    fun actualizar(anterior: EstadoGuia?, proyeccion: ProyeccionRuta, totalKm: Double): EstadoGuia {
+    /**
+     * Actualiza el estado de la guía con histéresis: avisa al salir (>30 m) y al volver (<20 m).
+     * El avance solo cuenta estando en la ruta: lejos de ella se conserva el último (o el inicio),
+     * para no marcar "40 %" a alguien que aún no ha llegado a la ruta.
+     */
+    fun actualizar(anterior: EstadoGuia?, proyeccion: ProyeccionRuta, ruta: List<Coordenada>): EstadoGuia {
+        val totalKm = acumuladas(ruta).last()
         val fuera = if (anterior?.fueraDeRuta == true) proyeccion.desvioM > UMBRAL_REGRESO_M
         else proyeccion.desvioM > UMBRAL_DESVIO_M
+        val avance = when {
+            !fuera -> proyeccion
+            anterior != null -> anterior.avance
+            else -> ProyeccionRuta(0, ruta.first(), 0.0, proyeccion.desvioM)
+        }
         val llegada = anterior?.llegada == true ||
-            (totalKm - proyeccion.recorridoKm) * 1000 < UMBRAL_LLEGADA_M && proyeccion.recorridoKm > totalKm * 0.5
-        return EstadoGuia(proyeccion, totalKm, fuera, llegada)
+            !fuera && (totalKm - avance.recorridoKm) * 1000 < UMBRAL_LLEGADA_M && avance.recorridoKm > totalKm * 0.5
+        return EstadoGuia(proyeccion, avance, totalKm, fuera, llegada)
     }
 
     /** Parte la ruta en el tramo ya recorrido y el pendiente (para pintarlos distinto). */

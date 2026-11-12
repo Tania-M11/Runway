@@ -88,6 +88,8 @@ data class PlanificadorEstado(
     val consulta: String = "",
     val buscandoLugar: Boolean = false,
     val lugaresEncontrados: List<Lugar> = emptyList(),
+    /** Mensaje de la búsqueda de lugares (sin resultados o sin conexión). */
+    val mensajeBusqueda: String? = null,
     // Destino (opcional) y sugerencias
     val origenDestino: OrigenDestino = OrigenDestino.Ninguno,
     val destino: Lugar? = null,
@@ -249,16 +251,28 @@ class PlanificadorViewModel(
         trabajoBusqueda?.cancel()
         val limpio = texto.trim()
         if (limpio.length < 3) {
-            _estado.update { it.copy(lugaresEncontrados = emptyList(), buscandoLugar = false) }
+            _estado.update { it.copy(lugaresEncontrados = emptyList(), buscandoLugar = false, mensajeBusqueda = null) }
             return
         }
         trabajoBusqueda = viewModelScope.launch {
             delay(450)
-            _estado.update { it.copy(buscandoLugar = true) }
+            _estado.update { it.copy(buscandoLugar = true, mensajeBusqueda = null) }
             val cerca = _estado.value.puntoMapa?.coordenada ?: ubicacion.ultimaConocida()?.coordenada
-            val lista = runCatching { buscador.buscar(limpio, cerca) }.getOrDefault(emptyList())
-            _estado.update { it.copy(lugaresEncontrados = lista, buscandoLugar = false) }
+            val r = runCatching { buscador.buscar(limpio, cerca) }
+            _estado.update {
+                it.copy(
+                    lugaresEncontrados = r.getOrDefault(emptyList()),
+                    buscandoLugar = false,
+                    mensajeBusqueda = mensajeDe(r, limpio),
+                )
+            }
         }
+    }
+
+    private fun mensajeDe(r: Result<List<Lugar>>, texto: String): String? = when {
+        r.isFailure -> "No se pudo buscar ahora. Revisa tu conexión o elige el punto en el mapa."
+        r.getOrNull().isNullOrEmpty() -> "No encontramos «$texto». Prueba con otro nombre."
+        else -> null
     }
 
     fun elegirLugarBuscado(lugar: Lugar) {
@@ -286,15 +300,17 @@ class PlanificadorViewModel(
         trabajoBusquedaDestino?.cancel()
         val limpio = texto.trim()
         if (limpio.length < 3) {
-            _estado.update { it.copy(lugaresDestino = emptyList(), buscandoDestino = false) }
+            _estado.update { it.copy(lugaresDestino = emptyList(), buscandoDestino = false, mensajeBusqueda = null) }
             return
         }
         trabajoBusquedaDestino = viewModelScope.launch {
             delay(450)
-            _estado.update { it.copy(buscandoDestino = true) }
+            _estado.update { it.copy(buscandoDestino = true, mensajeBusqueda = null) }
             val cerca = _estado.value.inicio?.coordenada
-            val lista = runCatching { buscador.buscar(limpio, cerca) }.getOrDefault(emptyList())
-            _estado.update { it.copy(lugaresDestino = lista, buscandoDestino = false) }
+            val r = runCatching { buscador.buscar(limpio, cerca) }
+            _estado.update {
+                it.copy(lugaresDestino = r.getOrDefault(emptyList()), buscandoDestino = false, mensajeBusqueda = mensajeDe(r, limpio))
+            }
         }
     }
 

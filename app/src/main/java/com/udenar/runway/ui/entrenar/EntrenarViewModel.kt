@@ -9,7 +9,11 @@ import com.udenar.runway.RunwayApp
 import com.udenar.runway.data.entrenamiento.EstadoSesion
 import com.udenar.runway.data.entrenamiento.SesionEntrenamiento
 import com.udenar.runway.data.local.RepositorioRutas
+import com.udenar.runway.data.ubicacion.EstadoSatelites
 import com.udenar.runway.data.ubicacion.RepositorioUbicacion
+import com.udenar.runway.data.ubicacion.Satelites
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import com.udenar.runway.domain.FiltroGps
 import com.udenar.runway.domain.PosicionGps
 import com.udenar.runway.domain.RutaGuardada
@@ -32,6 +36,8 @@ data class EntrenarEstado(
     val rutaElegida: String? = null,
     val gps: EstadoGps = EstadoGps.Buscando,
     val precisionM: Float? = null,
+    /** Satélites del receptor GNSS (android.location.GnssStatus). */
+    val satelites: EstadoSatelites? = null,
 )
 
 /** Pestaña Entrenar (especificación 4): configuración breve e inicio del seguimiento GPS. */
@@ -39,12 +45,15 @@ class EntrenarViewModel(
     val sesion: SesionEntrenamiento,
     private val ubicacion: RepositorioUbicacion,
     rutas: RepositorioRutas,
+    private val satelites: Satelites,
 ) : ViewModel() {
+
+    private val estadoSatelites = MutableStateFlow<EstadoSatelites?>(null)
 
     private val eleccion = MutableStateFlow<String?>(null)
     private val gps = MutableStateFlow(EstadoGps.Buscando to null as Float?)
 
-    val estado: StateFlow<EntrenarEstado> = combine(sesion.estado, rutas.rutas(), eleccion, gps) { s, lista, elegida, g ->
+    val estado: StateFlow<EntrenarEstado> = combine(sesion.estado, rutas.rutas(), eleccion, gps, estadoSatelites) { s, lista, elegida, g, sat ->
         val ordenadas = lista.sortedBy { if (it.visibilidad == Visibilidad.Reutilizable) 0 else 1 }
         EntrenarEstado(
             sesion = s,
@@ -52,6 +61,7 @@ class EntrenarViewModel(
             rutaElegida = elegida?.takeIf { id -> lista.any { it.id == id } },
             gps = g.first,
             precisionM = g.second,
+            satelites = sat,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EntrenarEstado())
 
@@ -71,8 +81,10 @@ class EntrenarViewModel(
             !ubicacion.tienePermiso() -> gps.value = EstadoGps.SinPermiso to null
             !ubicacion.ubicacionActivada() -> gps.value = EstadoGps.Apagado to null
             sesion.estado.value.enCurso -> Unit // la sesión ya usa el GPS
-            else -> {
+            else -> coroutineScope {
                 gps.value = EstadoGps.Buscando to null
+                // Satélites en vivo mientras se espera la señal
+                launch { satelites.estado().collect { estadoSatelites.value = it } }
                 ubicacion.posiciones().collect { p: PosicionGps ->
                     gps.update {
                         (if (p.deGps && p.precisionM <= FiltroGps.PRECISION_MAX_M) EstadoGps.Listo else EstadoGps.Debil) to p.precisionM
@@ -86,7 +98,7 @@ class EntrenarViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val c = (this[APPLICATION_KEY] as RunwayApp).contenedor
-                EntrenarViewModel(c.sesion, c.ubicacion, c.rutas)
+                EntrenarViewModel(c.sesion, c.ubicacion, c.rutas, c.satelites)
             }
         }
     }

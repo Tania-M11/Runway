@@ -12,23 +12,106 @@ Proyecto de clase sobre **integración de mapas en el desarrollo móvil**: el ma
 | Arquitectura | MVVM (ViewModel + StateFlow) con inyección manual (`di/AppContainer`) |
 | Mapa | MapLibre Native Android (`MapView`) |
 | Teselas | OpenFreeMap (datos de OpenStreetMap, sin clave de API) |
-| Ubicación | `android.location.LocationManager` (sin Google Play Services) |
-| Buscador de lugares | Photon (geocodificador gratuito sobre OpenStreetMap) |
+| Ubicación y sensores | `android.location`: `LocationManager`, `GnssStatus` y `Geocoder` (sin Google Play Services); brújula y vibrador |
+| Buscador de lugares | Photon (geocodificador gratuito sobre OpenStreetMap), con `Geocoder` de Android como respaldo |
 | Rutas peatonales | Valhalla, servidor público `valhalla1.openstreetmap.de` |
 | Base local (offline) | Room (SQLite) |
 | Sincronización diferida | WorkManager (se ejecuta cuando vuelve la red) |
 | Backend | Supabase (Auth + PostgreSQL) con `supabase-kt` |
 | Gráficas | Canvas de Compose (barras propias, sin librería) |
 
-## Mecanismos técnicos de la integración de mapas
+## Teoría de clase → código de RUNWAY
 
-| Mecanismo | Dónde está en RUNWAY |
+Cada concepto de la guía de recursos, dónde está implementado y cómo verlo en la app.
+
+### 1. Acceso al hardware de geolocalización
+
+**android.location**: paquete del framework de Android que da acceso a los servicios de geolocalización del dispositivo.
+
+| Clase de `android.location` | Uso en RUNWAY | Archivo | Dónde se ve |
+|---|---|---|---|
+| `LocationManager` + `LocationListener` | Posición en vivo con los proveedores GPS y red (sin Google Play Services) | `data/ubicacion/RepositorioUbicacion.kt` | Punto morado en Explorar; registro del entrenamiento |
+| `Location` (precisión, altitud, velocidad, rumbo) | Filtro de ruido, subida acumulada, ritmo, orientación del mapa | `RepositorioUbicacion.kt`, `domain/Entrenamiento.kt` | Métricas del entrenamiento; modo guía |
+| `GnssStatus` | Satélites en uso y visibles por constelación (GPS, Galileo, GLONASS, BeiDou) | `data/ubicacion/Satelites.kt` | Pestaña Entrenar, tarjeta "GPS listo" |
+| `Geocoder` | Nombre ↔ coordenadas como respaldo cuando el servicio Photon no responde | `data/lugares/GeocodificadorAndroid.kt` | Búsqueda de lugares en Planificar y Explorar |
+| `LocationManager.PROVIDERS_CHANGED_ACTION` | Saber si el usuario encendió o apagó la ubicación | `RepositorioUbicacion.kt` | Aviso "La ubicación del teléfono está apagada" |
+
+Además se usan otros sensores del teléfono: la brújula (sensor de rotación, `data/ubicacion/Brujula.kt`) para orientar el mapa estando quieto, y el vibrador para los avisos de desvío y llegada (`data/entrenamiento/Vibrador.kt`). La posición se sigue registrando con la pantalla apagada gracias a un servicio en primer plano de tipo `location` (`data/entrenamiento/ServicioEntrenamiento.kt`).
+
+### 2. Contenedores de interfaz y vistas
+
+**Android: MapView**: el SDK de mapas entrega un contenedor (`MapView` o `SupportMapFragment`) que se inserta en la interfaz.
+
+- RUNWAY usa el `MapView` de MapLibre (`ui/mapa/MapaRunway.kt`), insertado en Jetpack Compose con `AndroidView`.
+- Como toda vista de mapa, necesita que se le reenvíe el ciclo de vida de la pantalla (`onStart`, `onResume`, `onPause`, `onStop`, `onDestroy`); lo hace un `LifecycleEventObserver`.
+- `SupportMapFragment` es la alternativa basada en Fragments. No se usa porque la app está hecha con Compose, sin Fragments.
+
+**iOS: MapKit**: RUNWAY es Android nativo, así que MapKit no se usa. Equivalencias de lo implementado:
+
+| Android (RUNWAY) | iOS nativo (MapKit / Core Location) |
 |---|---|
-| 1. Acceso al hardware de geolocalización (`android.location`) | `data/location`: `LocationManager` + permisos → `Flow<Location>` |
-| 2. Contenedor de interfaz (`MapView` / `MapKit`) | `ui/mapa`: `MapView` de MapLibre dentro de Compose con `AndroidView`, con su ciclo de vida reenviado |
-| 3. Operaciones automáticas del motor (conexión al servidor, renderizado y gestos) | Lo hace MapLibre a partir del estilo de OpenFreeMap: descarga y caché de teselas, renderizado en GPU, pellizco, giro e inclinación |
-| 4. Control lógico y eventos (`OnMapReadyCallback`, `GoogleMap` / `MapController`) | `getMapAsync(OnMapReadyCallback)` entrega un `MapLibreMap` (equivalente de `GoogleMap`); cámara, capas y escuchas de toque los controla el ViewModel |
-| 5. Integración multiplataforma (ecosistema de paquetes) | Gradle + Maven Central (`gradle/libs.versions.toml`); MapLibre tiene el mismo motor para Android, iOS y web |
+| `MapView` (MapLibre) | `MKMapView` |
+| `OnMapReadyCallback` | `mapViewDidFinishLoadingMap(_:)` del `MKMapViewDelegate` |
+| Marcadores (`SymbolLayer` / `CircleLayer`) | `MKAnnotation` + `MKAnnotationView` |
+| Trazar rutas (`LineLayer`) | `MKPolyline` + `MKPolylineRenderer` |
+| Superposiciones (`FillLayer`) | `MKOverlay` (`MKCircle`, `MKPolygon`) |
+| Cámara con rumbo e inclinación | `MKMapCamera` (`heading`, `pitch`) |
+| `LocationManager` / `GnssStatus` | `CLLocationManager` / `CLLocation` |
+| `Geocoder` | `CLGeocoder` |
+| `OfflineManager` (mapas sin conexión) | No hay equivalente directo en MapKit |
+
+MapLibre también tiene una versión nativa para iOS que lee el mismo estilo de OpenFreeMap, así que el mapa se vería igual en ambas plataformas.
+
+### 3. Operaciones automáticas del motor de mapas
+
+**Conexión al servidor**: el motor se conecta automáticamente al servidor de teselas y descarga los datos según el área y el zoom visibles, guardándolos en caché.
+
+- Al recibir la URL del estilo (`ESTILO_MAPA`, OpenFreeMap), MapLibre descarga por su cuenta el estilo, las teselas vectoriales, los íconos y las fuentes. La app no programa ninguna petición de teselas.
+- Esto se hace visible en los **mapas sin conexión** (`data/offline/RepositorioMapasOffline.kt`): la app solo indica el área y los zooms, y el motor descarga y guarda todo, informa el progreso y luego lo usa sin internet.
+
+**Renderizado y gestos**: visualización dinámica en pantalla y respuesta automática a los gestos táctiles (desplazamiento, rotación y zoom).
+
+- El dibujo en la GPU y los gestos (arrastrar, pellizcar, girar, inclinar) los hace el motor.
+- La app se engancha a los gestos: al arrastrar, el mapa deja de seguir al corredor (`onArrastre`).
+- La app también controla el renderizado: los **edificios en 3D** del estilo (capa `fill-extrusion`) se encienden en modo guía, se apagan en "norte arriba" y se tiñen con la paleta de RUNWAY (`ControladorMapa.mostrarEdificios3D`).
+
+### 4. Control lógico y eventos
+
+**OnMapReadyCallback**: interfaz que avisa cuando el mapa terminó de cargarse y está listo para recibir instrucciones.
+
+En `MapaRunway.kt`, `mapView.getMapAsync(OnMapReadyCallback { ... })` recibe el controlador del motor. Con él se crea el `ControladorMapa` y se fija el estado inicial. Hay un segundo aviso cuando el estilo terminó de cargar, y solo entonces se dibujan marcadores y rutas.
+
+**GoogleMap / MapController**: permiten personalizar el estado inicial del mapa, añadir marcadores, trazar rutas y gestionar superposiciones o anotaciones.
+
+Todo está en `ui/mapa/ControladorMapa.kt`, que envuelve al `MapLibreMap` (el equivalente de `GoogleMap`):
+
+| Operación de la definición | Método | Ejemplos en la app |
+|---|---|---|
+| Personalizar el estado inicial | `configurarEstadoInicial` | Cámara inicial, zoom mínimo y máximo, brújula |
+| Añadir marcadores | `mostrarMarcador`, `mostrarLugares`, `mostrarAmigos` | Inicio, destino con bandera, mi posición, lugares sugeridos, avatares de amigos en vivo |
+| Trazar rutas | `trazarRutas` | Alternativas en colores, recorrido GPS, tramo recorrido y pendiente, línea de regreso |
+| Gestionar superposiciones | `mostrarSuperposiciones`, `mostrarEdificios3D` | Círculo de alcance al elegir destino, zonas descargadas |
+| Cámara | `ejecutar(ComandoMapa)` | Mover, encuadrar una ruta, seguir con rumbo e inclinación |
+| Eventos | `escucharEventos` | Toque en el mapa, toque en una ruta o un lugar (`queryRenderedFeatures`), cámara detenida, arrastre |
+
+El flujo sigue la arquitectura MVVM: el **ViewModel** decide, el `ControladorMapa` ejecuta sobre el mapa y los **eventos** del mapa vuelven al ViewModel.
+
+### 5. Integración en entornos multiplataforma
+
+**Ecosistemas de paquetes**: Pub.dev es el repositorio oficial de paquetes para Dart y Flutter, y npm es el gestor de paquetes por defecto de Node.js (y de React Native).
+
+- RUNWAY es Android nativo en Kotlin. Su ecosistema es **Gradle + Maven Central / Google Maven**, con las versiones centralizadas en `gradle/libs.versions.toml`.
+- Equivalentes en otros ecosistemas para las mismas piezas:
+
+| Pieza | Kotlin (Maven) — RUNWAY | Flutter (pub.dev) | React Native (npm) |
+|---|---|---|---|
+| Mapa | `org.maplibre.gl:android-sdk` | `maplibre_gl` o `flutter_map` | `@maplibre/maplibre-react-native` o `react-native-maps` |
+| Ubicación | `android.location` (sistema) | `geolocator` | `react-native-geolocation-service` |
+| Base de datos local | `androidx.room` | `drift` o `sqflite` | `react-native-sqlite-storage` o WatermelonDB |
+| Backend | `supabase-kt` | `supabase_flutter` | `@supabase/supabase-js` |
+| HTTP | `ktor-client` | `http` o `dio` | `fetch` o `axios` |
+
+El plan original de RUNWAY estaba pensado en Flutter con pub.dev (`flutter_map`, `geolocator`, `drift`). La app se construyó en Kotlin con las piezas equivalentes de Maven.
 
 ## Cómo se generan las rutas
 
@@ -45,19 +128,6 @@ Valhalla calcula caminos entre puntos, pero no "un circuito de 5 km". `data/ruta
 - `ServicioEntrenamiento` es un servicio en primer plano de tipo `location`: mantiene el registro con la pantalla apagada y muestra distancia y cronómetro en la notificación.
 - Si Android cierra la app a mitad de un entrenamiento, al abrirla de nuevo se recupera desde SQLite como pausado (y si el sistema reinicia el servicio, sigue registrando).
 - La base de datos pasó a la versión 2 con una migración automática de Room: las rutas guardadas se conservan.
-
-## MapController: `ui/mapa/ControladorMapa.kt`
-
-La guía de recursos describe al controlador del mapa (GoogleMap / MapController) como lo que permite *personalizar el estado inicial del mapa, añadir marcadores, trazar rutas y gestionar superposiciones (overlays) o anotaciones*. En RUNWAY esas cuatro operaciones están en una sola clase que envuelve al controlador del motor (`MapLibreMap`):
-
-| Operación | Método | Dónde se ve en la app |
-|---|---|---|
-| Estado inicial | `configurarEstadoInicial` | Cámara, zoom mínimo y máximo y brújula al abrir cualquier mapa |
-| Marcadores | `mostrarMarcador`, `mostrarLugares`, `mostrarAmigos` | Inicio (lima), destino (bandera), mi posición, lugares sugeridos y avatares de amigos |
-| Rutas | `trazarRutas` | Alternativas en colores, trazado GPS en vivo, ruta de referencia |
-| Superposiciones | `mostrarSuperposiciones` | Círculo con el alcance de la distancia al elegir destino; área descargada (parte 12) |
-
-Además ejecuta las órdenes de cámara (mover, encuadrar) y registra los eventos: toque, toque sobre una ruta o un marcador (`queryRenderedFeatures`), cámara detenida y arrastre.
 
 ## Mapas sin conexión (mecanismo 3)
 

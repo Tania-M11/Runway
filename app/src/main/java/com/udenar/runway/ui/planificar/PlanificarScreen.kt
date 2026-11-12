@@ -118,6 +118,10 @@ fun PlanificarScreen(
                     BarraBusqueda(e.consulta, vm::onConsulta, "Ciudad, barrio o parque")
                     when {
                         e.buscandoLugar -> EstadoCargando("Buscando lugares…")
+                        e.mensajeBusqueda != null -> Text(
+                            e.mensajeBusqueda!!, style = MaterialTheme.typography.bodySmall, color = Runway.TextoSecundario,
+                            modifier = Modifier.padding(top = Espacio.s),
+                        )
                         e.lugaresEncontrados.isNotEmpty() -> TarjetaRunway(Modifier.fillMaxWidth().padding(top = Espacio.s), relleno = 0.dp) {
                             e.lugaresEncontrados.forEachIndexed { i, lugar ->
                                 FilaLugar(lugar) {
@@ -183,6 +187,10 @@ fun PlanificarScreen(
                     BarraBusqueda(e.consultaDestino, vm::onConsultaDestino, "¿A dónde quieres llegar?")
                     when {
                         e.buscandoDestino -> EstadoCargando("Buscando lugares…")
+                        e.mensajeBusqueda != null -> Text(
+                            e.mensajeBusqueda!!, style = MaterialTheme.typography.bodySmall, color = Runway.TextoSecundario,
+                            modifier = Modifier.padding(top = Espacio.s),
+                        )
                         e.lugaresDestino.isNotEmpty() -> TarjetaRunway(Modifier.fillMaxWidth().padding(top = Espacio.s), relleno = 0.dp) {
                             e.lugaresDestino.forEachIndexed { i, lugar ->
                                 FilaLugar(lugar) {

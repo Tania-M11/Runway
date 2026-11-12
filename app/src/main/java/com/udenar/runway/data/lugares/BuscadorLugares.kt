@@ -19,11 +19,21 @@ import kotlinx.serialization.Serializable
 /**
  * Buscador de lugares en cualquier parte del mundo con Photon (geocodificador
  * gratuito basado en OpenStreetMap). Permite elegir dónde planificar una ruta.
+ * Si Photon no responde, se usa el geocodificador de Android ([respaldo]).
  */
-class BuscadorLugares(private val http: HttpClient) {
+class BuscadorLugares(private val http: HttpClient, private val respaldo: GeocodificadorAndroid? = null) {
 
     /** Busca por texto; [cerca] da prioridad a resultados próximos a lo que se ve en el mapa. */
-    suspend fun buscar(texto: String, cerca: Coordenada?): List<Lugar> {
+    suspend fun buscar(texto: String, cerca: Coordenada?): List<Lugar> = try {
+        buscarEnPhoton(texto, cerca)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        // Photon caído o sin respuesta: se intenta con el geocodificador del sistema
+        respaldo?.buscar(texto, cerca)?.takeIf { it.isNotEmpty() } ?: throw e
+    }
+
+    private suspend fun buscarEnPhoton(texto: String, cerca: Coordenada?): List<Lugar> {
         val respuesta: RespuestaPhoton = http.get("$BASE/api/") {
             parameter("q", texto)
             parameter("limit", 8)
@@ -36,7 +46,10 @@ class BuscadorLugares(private val http: HttpClient) {
     }
 
     /** Nombre del lugar más cercano a una coordenada (geocodificación inversa). */
-    suspend fun nombreDe(punto: Coordenada): Lugar? {
+    suspend fun nombreDe(punto: Coordenada): Lugar? =
+        runCatching { nombreEnPhoton(punto) }.getOrNull() ?: respaldo?.nombreDe(punto)
+
+    private suspend fun nombreEnPhoton(punto: Coordenada): Lugar? {
         val respuesta: RespuestaPhoton = http.get("$BASE/reverse") {
             parameter("lat", punto.lat)
             parameter("lon", punto.lon)

@@ -97,7 +97,7 @@ fun EntrenamientoActivoScreen(
         val ref = s.referencia
         if (ref != null && guia != null) {
             // Guía en vivo: la ruta se parte en lo recorrido (lima) y lo pendiente (gris)
-            val (hecho, pendiente) = Guia.partir(ref.puntos, guia.proyeccion)
+            val (hecho, pendiente) = Guia.partir(ref.puntos, guia.avance)
             add(TrazoRuta("referencia-pendiente", pendiente, COLOR_REFERENCIA, seleccionada = false))
             add(TrazoRuta("referencia-hecha", hecho, COLOR_RUTA_HECHA, seleccionada = true))
         } else if (ref != null) {
@@ -122,6 +122,8 @@ fun EntrenamientoActivoScreen(
                 comandos = vm.comandosMapa,
                 onEstiloCargado = vm::alCargarMapa,
                 onArrastre = vm::dejarDeSeguir,
+                // Modo guía: mapa inclinado con edificios 3D; norte arriba: plano, sin edificios
+                edificios3D = ui.modoGuia,
                 modifier = Modifier.fillMaxSize(),
             )
             Column(
