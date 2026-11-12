@@ -1,6 +1,7 @@
 package com.udenar.runway.data.cuenta
 
 import com.udenar.runway.data.preferencias.PreferenciasPerfil
+import com.udenar.runway.data.sync.Sincronizador
 import com.udenar.runway.domain.Nivel
 import com.udenar.runway.domain.PerfilCorredor
 import com.udenar.runway.domain.PreferenciaDesnivel
@@ -12,6 +13,7 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
@@ -44,6 +46,7 @@ data class PerfilRemoto(
 class RepositorioCuenta(
     private val supabase: SupabaseClient,
     private val perfiles: PreferenciasPerfil,
+    private val sincronizador: Sincronizador,
     /** Borra la base local (Room) cuando entra una cuenta distinta a la dueña de esos datos. */
     private val borrarDatosLocales: suspend () -> Unit,
 ) {
@@ -86,6 +89,8 @@ class RepositorioCuenta(
         val dueno = perfiles.propietarioDatosLocales
         if (dueno != null && dueno != usuario.id) borrarDatosLocales()
         perfiles.propietarioDatosLocales = usuario.id
+        // Teléfono nuevo para esta cuenta: se trae su historial desde Supabase
+        runCatching { sincronizador.descargarSiEstaVacio() }
         perfiles.guardar(
             PerfilCorredor(
                 usuarioId = remoto.id,
@@ -122,6 +127,15 @@ class RepositorioCuenta(
     }
 
     fun correoActual(): String? = supabase.auth.currentUserOrNull()?.email
+
+    /**
+     * Antes de salir se intenta subir lo pendiente (con la sesión todavía activa).
+     * Devuelve cuántos elementos quedaron sin sincronizar (p. ej. por falta de red).
+     */
+    suspend fun subirAntesDeSalir(): Int {
+        runCatching { sincronizador.subir() }
+        return sincronizador.pendientes.first()
+    }
 
     suspend fun cerrarSesion() {
         runCatching { supabase.auth.signOut() }

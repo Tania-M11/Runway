@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.udenar.runway.BuildConfig
 import com.udenar.runway.data.cuenta.RepositorioCuenta
 import com.udenar.runway.data.red.JsonRunway
+import com.udenar.runway.data.sync.Sincronizador
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
@@ -67,9 +68,13 @@ class AppContainer(context: Context) {
             install(Postgrest)
         }
     }
+    val sincronizador by lazy { Sincronizador(supabase, baseDatos.rutas(), baseDatos.entrenamientos()) }
     val cuenta by lazy {
-        RepositorioCuenta(supabase, preferenciasPerfil) {
-            withContext(Dispatchers.IO) { baseDatos.clearAllTables() }
-        }
+        RepositorioCuenta(
+            supabase,
+            preferenciasPerfil,
+            sincronizador,
+            borrarDatosLocales = { withContext(Dispatchers.IO) { baseDatos.clearAllTables() } },
+        )
     }
 }

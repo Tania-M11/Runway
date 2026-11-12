@@ -75,7 +75,7 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 6 | Entrenamiento activo con servicio en primer plano, pausa, recuperación tras cierre y resumen | 5.7, 5.8, 5.9 | Hecha |
 | 7 | Historial (7 días, 30 días, 12 meses), gráficas, récords e Inicio con datos reales | 5.10, 5.2 | Hecha |
 | 8 | Cuentas: bienvenida, registro con avatar, inicio de sesión, perfil con código de amigo | Acceso, 5.12 | En curso (falta el proyecto Supabase) |
-| 9 | Sincronización de rutas y entrenamientos con Supabase | 7 | |
+| 9 | Sincronización de rutas y entrenamientos con Supabase (WorkManager) | 7 | Código listo, falta probar con el servidor |
 | 10 | Amigos por código con aceptación y ubicación en vivo mientras entrenan | — | |
 | 11 | Perfil editable y pruebas de campo | 5.12 | |
 

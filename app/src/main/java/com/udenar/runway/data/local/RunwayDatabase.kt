@@ -139,6 +139,24 @@ interface RutasDao {
 
     @Query("UPDATE rutas SET eliminada = 1, actualizadaEn = :ahora, pendienteSync = 1 WHERE id = :id")
     suspend fun marcarEliminada(id: String, ahora: Long)
+
+    // --- Sincronización (parte 9) ---
+
+    @Query("SELECT * FROM rutas WHERE pendienteSync = 1")
+    suspend fun pendientes(): List<RutaEntidad>
+
+    @Query("SELECT COUNT(*) FROM rutas WHERE pendienteSync = 1")
+    fun contarPendientes(): Flow<Int>
+
+    /** Solo si no cambió mientras se subía (si cambió, queda pendiente para la próxima vez). */
+    @Query("UPDATE rutas SET pendienteSync = 0 WHERE id = :id AND actualizadaEn = :version")
+    suspend fun marcarSincronizada(id: String, version: Long)
+
+    @Query("DELETE FROM rutas WHERE id = :id AND eliminada = 1")
+    suspend fun borrarEliminada(id: String)
+
+    @Query("SELECT COUNT(*) FROM rutas")
+    suspend fun total(): Int
 }
 
 @Dao
@@ -176,4 +194,25 @@ interface EntrenamientosDao {
     /** Descartar: borrado real (nunca se sincronizó); los puntos se borran en cascada. */
     @Query("DELETE FROM entrenamientos WHERE id = :id")
     suspend fun borrar(id: String)
+
+    // --- Sincronización (parte 9): solo se suben los entrenamientos terminados ---
+
+    @Query("SELECT * FROM entrenamientos WHERE pendienteSync = 1 AND estado = 'FINALIZADO'")
+    suspend fun pendientes(): List<EntrenamientoEntidad>
+
+    @Query("SELECT COUNT(*) FROM entrenamientos WHERE pendienteSync = 1 AND estado = 'FINALIZADO'")
+    fun contarPendientes(): Flow<Int>
+
+    @Query("UPDATE entrenamientos SET pendienteSync = 0 WHERE id = :id")
+    suspend fun marcarSincronizado(id: String)
+
+    @Query("SELECT COUNT(*) FROM entrenamientos")
+    suspend fun total(): Int
+
+    /** Entrenamiento descargado del servidor con sus puntos reconstruidos. */
+    @Transaction
+    suspend fun insertarDescargado(e: EntrenamientoEntidad, puntos: List<PuntoGpsEntidad>) {
+        insertar(e)
+        puntos.forEach { insertarPunto(it) }
+    }
 }

@@ -85,6 +85,9 @@ dependencies {
     implementation(libs.supabase.auth)
     implementation(libs.supabase.postgrest)
 
+    // Sincronización diferida
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Red
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)

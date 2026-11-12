@@ -39,7 +39,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.udenar.runway.RunwayApp
+import com.udenar.runway.data.sync.Sincronizador
 import com.udenar.runway.ui.components.AvatarImagen
+import com.udenar.runway.ui.components.AvisoEstado
+import com.udenar.runway.ui.components.TipoAviso
 import com.udenar.runway.ui.components.BotonCircular
 import com.udenar.runway.ui.components.BotonRunway
 import com.udenar.runway.ui.components.EncabezadoPantalla
@@ -62,6 +65,9 @@ fun PerfilScreen() {
     val portapapeles = LocalClipboardManager.current
     val alcance = rememberCoroutineScope()
     var confirmarSalida by remember { mutableStateOf(false) }
+    var saliendo by remember { mutableStateOf(false) }
+    var quedanSinSubir by remember { mutableStateOf(0) }
+    val pendientes by contenedor.sincronizador.pendientes.collectAsStateWithLifecycle(0)
     val p = perfil ?: return
 
     Column(
@@ -119,10 +125,23 @@ fun PerfilScreen() {
             FilaDato("Terreno preferido", p.desnivel?.etiqueta ?: "Sin definir")
         }
 
+        // Estado de sincronización con la nube (offline-first: nunca bloquea el uso)
+        if (pendientes > 0) {
+            AvisoEstado(
+                TipoAviso.PendienteSincronizar,
+                if (pendientes == 1) "1 elemento pendiente de sincronizar" else "$pendientes elementos pendientes de sincronizar",
+                accion = "Sincronizar",
+                onAccion = { Sincronizador.programar(context) },
+            )
+        } else {
+            AvisoEstado(TipoAviso.Sincronizado, "Todo sincronizado con tu cuenta")
+        }
+
         Spacer(Modifier.height(Espacio.s))
         BotonRunway(
             "Cerrar sesión",
             onClick = { confirmarSalida = true },
+            cargando = saliendo,
             estilo = EstiloBoton.Contorno,
             icono = Icons.AutoMirrored.Outlined.Logout,
             habilitado = !sesionEntrenamiento.enCurso,
@@ -147,12 +166,45 @@ fun PerfilScreen() {
             confirmButton = {
                 TextButton(onClick = {
                     confirmarSalida = false
-                    alcance.launch { contenedor.cuenta.cerrarSesion() }
+                    saliendo = true
+                    alcance.launch {
+                        // Primero se intenta subir lo pendiente con la sesión todavía activa
+                        val quedan = contenedor.cuenta.subirAntesDeSalir()
+                        saliendo = false
+                        if (quedan == 0) contenedor.cuenta.cerrarSesion() else quedanSinSubir = quedan
+                    }
                 }) { Text("Cerrar sesión", color = Runway.Error) }
             },
             dismissButton = { TextButton(onClick = { confirmarSalida = false }) { Text("Cancelar", color = Runway.TextoSecundario) } },
         )
     }
+    if (quedanSinSubir > 0) {
+        DialogoPendientes(
+            cantidad = quedanSinSubir,
+            onSalir = {
+                quedanSinSubir = 0
+                alcance.launch { contenedor.cuenta.cerrarSesion() }
+            },
+            onCancelar = { quedanSinSubir = 0 },
+        )
+    }
+}
+
+@Composable
+private fun DialogoPendientes(cantidad: Int, onSalir: () -> Unit, onCancelar: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onCancelar,
+        containerColor = Runway.Fondo,
+        title = { Text("Hay datos sin sincronizar") },
+        text = {
+            Text(
+                "Sin conexión no pudimos subir $cantidad elemento(s). Si sales, se subirán cuando vuelvas a entrar " +
+                    "con esta cuenta en este teléfono; si entra otra cuenta, se perderán. Te recomendamos conectarte primero.",
+            )
+        },
+        confirmButton = { TextButton(onClick = onSalir) { Text("Salir igual", color = Runway.Error) } },
+        dismissButton = { TextButton(onClick = onCancelar) { Text("Cancelar", color = Runway.TextoSecundario) } },
+    )
 }
 
 @Composable
