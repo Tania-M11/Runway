@@ -17,7 +17,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.Icon
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import com.udenar.runway.ui.ubicacion.abrirAjustesDeLaApp
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
@@ -60,7 +71,7 @@ import kotlinx.coroutines.launch
  * Editar nombre, avatar y preferencias llega en la parte 11.
  */
 @Composable
-fun PerfilScreen(onAmigos: () -> Unit, onMapasOffline: () -> Unit) {
+fun PerfilScreen(onAmigos: () -> Unit, onMapasOffline: () -> Unit, onEditar: () -> Unit) {
     val context = LocalContext.current
     val contenedor = (context.applicationContext as RunwayApp).contenedor
     val perfil by contenedor.preferenciasPerfil.perfil.collectAsStateWithLifecycle()
@@ -86,12 +97,13 @@ fun PerfilScreen(onAmigos: () -> Unit, onMapasOffline: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AvatarImagen(p.avatar, tamano = 88.dp)
             Spacer(Modifier.width(Espacio.l))
-            Column {
+            Column(Modifier.weight(1f)) {
                 Text(p.nombre, style = MaterialTheme.typography.headlineSmall)
                 contenedor.cuenta.correoActual()?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = Runway.TextoSecundario)
                 }
             }
+            BotonCircular(Icons.Outlined.Edit, "Editar perfil", onClick = onEditar, fondo = Runway.LavandaClaro, colorIcono = Runway.MoradoOscuro)
         }
 
         // Código para que los amigos te agreguen (parte 10)
@@ -155,6 +167,8 @@ fun PerfilScreen(onAmigos: () -> Unit, onMapasOffline: () -> Unit) {
         } else {
             AvisoEstado(TipoAviso.Sincronizado, "Todo sincronizado con tu cuenta")
         }
+
+        TarjetaPermisos()
 
         Spacer(Modifier.height(Espacio.s))
         BotonRunway(
@@ -224,6 +238,60 @@ private fun DialogoPendientes(cantidad: Int, onSalir: () -> Unit, onCancelar: ()
         confirmButton = { TextButton(onClick = onSalir) { Text("Salir igual", color = Runway.Error) } },
         dismissButton = { TextButton(onClick = onCancelar) { Text("Cancelar", color = Runway.TextoSecundario) } },
     )
+}
+
+/**
+ * Estado de los permisos (especificación 5.12): se revisa cada vez que se vuelve a la
+ * pantalla, por si el usuario los cambió en Ajustes.
+ */
+@Composable
+private fun TarjetaPermisos() {
+    val context = LocalContext.current
+    var ubicacion by remember { mutableStateOf(false) }
+    var notificaciones by remember { mutableStateOf(true) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        ubicacion = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        notificaciones = Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    }
+    TarjetaRunway(Modifier.fillMaxWidth()) {
+        Text("Permisos", style = MaterialTheme.typography.titleMedium)
+        FilaPermiso(
+            "Ubicación", ubicacion,
+            "Para ubicarte en el mapa, proponerte rutas cerca y registrar tus entrenamientos con GPS.",
+        )
+        HorizontalDivider(color = Runway.Borde)
+        FilaPermiso(
+            "Notificaciones", notificaciones,
+            "Para ver distancia y tiempo con la pantalla apagada mientras entrenas.",
+        )
+        TextButton(onClick = { context.abrirAjustesDeLaApp() }) {
+            Text("Gestionar en Ajustes del teléfono", color = Runway.MoradoOscuro)
+        }
+    }
+}
+
+@Composable
+private fun FilaPermiso(nombre: String, concedido: Boolean, paraQue: String) {
+    Column(Modifier.fillMaxWidth().padding(vertical = Espacio.s)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(nombre, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            // Ícono + texto: el estado no depende solo del color
+            Icon(
+                if (concedido) Icons.Outlined.CheckCircle else Icons.Outlined.Block,
+                null,
+                tint = if (concedido) Runway.MoradoOscuro else Runway.Aviso,
+                modifier = Modifier.padding(end = 4.dp),
+            )
+            Text(
+                if (concedido) "Concedido" else "No concedido",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (concedido) Runway.MoradoOscuro else Runway.Aviso,
+            )
+        }
+        Text(paraQue, style = MaterialTheme.typography.bodySmall, color = Runway.TextoSecundario)
+    }
 }
 
 @Composable

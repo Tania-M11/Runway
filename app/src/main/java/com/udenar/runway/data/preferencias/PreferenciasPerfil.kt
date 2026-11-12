@@ -39,10 +39,15 @@ class PreferenciasPerfil(context: Context) {
     /** Al cerrar sesión se olvida el perfil (los datos de Room se conservan hasta que entre otra cuenta). */
     fun borrar() {
         prefs.edit {
-            listOf(USUARIO, NOMBRE, AVATAR, CODIGO, NIVEL, DESNIVEL).forEach { remove(it) }
+            listOf(USUARIO, NOMBRE, AVATAR, CODIGO, NIVEL, DESNIVEL, PENDIENTE).forEach { remove(it) }
         }
         _perfil.value = null
     }
+
+    /** Hay cambios del perfil hechos sin conexión que aún no llegan a Supabase. */
+    var perfilPendiente: Boolean
+        get() = prefs.getBoolean(PENDIENTE, false)
+        set(valor) = prefs.edit { putBoolean(PENDIENTE, valor) }
 
     /** Cuenta a la que pertenecen los datos guardados en la base local del teléfono. */
     var propietarioDatosLocales: String?
@@ -69,5 +74,6 @@ class PreferenciasPerfil(context: Context) {
         const val NIVEL = "nivel"
         const val DESNIVEL = "desnivel"
         const val PROPIETARIO = "propietario_datos_locales"
+        const val PENDIENTE = "perfil_pendiente"
     }
 }

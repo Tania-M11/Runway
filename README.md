@@ -144,14 +144,22 @@ Valhalla calcula caminos entre puntos, pero no "un circuito de 5 km". `data/ruta
 
 ```
 com.udenar.runway
-├─ data/          capa de datos
-│  ├─ location/   GPS (android.location)
-│  ├─ routing/    cliente de Valhalla
-│  ├─ local/      Room (SQLite)
-│  └─ remote/     Supabase
-├─ domain/        modelos y reglas puras (distancia, ritmo, puntuación de rutas)
-├─ ui/            pantallas Compose + ViewModel por módulo
-└─ di/            AppContainer
+├─ data/              capa de datos
+│  ├─ ubicacion/      GPS, satélites GNSS y brújula (android.location, sensores)
+│  ├─ lugares/        buscador Photon + Geocoder de respaldo
+│  ├─ rutas/          cliente de Valhalla y planificador
+│  ├─ local/          Room (SQLite): rutas, entrenamientos, puntos GPS
+│  ├─ entrenamiento/  sesión, servicio en primer plano, vibración
+│  ├─ offline/        mapas sin conexión (OfflineManager)
+│  ├─ cuenta/         registro, sesión y perfil (Supabase Auth)
+│  ├─ sync/           sincronización con Supabase (WorkManager)
+│  ├─ amigos/         amistades y ubicación en vivo (Realtime)
+│  ├─ preferencias/   copia local del perfil, del mapa y del último plan
+│  └─ red/            cliente HTTP compartido y monitor de conexión
+├─ domain/            modelos y reglas puras (rutas, guía, destinos, teselas, estadísticas)
+├─ ui/                pantallas Compose + ViewModel por módulo
+│  └─ mapa/           MapaRunway (MapView) y ControladorMapa
+└─ di/                AppContainer
 ```
 
 ## Plan de desarrollo por partes
@@ -174,7 +182,7 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 11 | Destino y sugerencias: elegir a dónde llegar (mapa con pin central, búsqueda o lugares sugeridos a la distancia pedida), rutas alternativas hacia el destino; ControladorMapa | 5.4–5.6 | Hecha |
 | 12 | Mapas sin conexión: descargar la zona de una ruta o lo que se ve en Explorar, progreso, superposición del área y gestión en Perfil | 5.3 | Hecha |
 | 13 | Guía en vivo: mapa orientado (rumbo GPS o brújula) e inclinado, tramo recorrido/pendiente, km restantes, aviso de desvío y llegada con vibración | 5.7 | Hecha |
-| 14 | Perfil editable y pruebas de campo | 5.12 | |
+| 14 | Perfil editable (nombre, avatar, nivel, terreno; se sube al volver la conexión), estado de permisos y lista de pruebas de campo (`docs/pruebas-de-campo.md`) | 5.12 | Hecha |
 
 ## Backend (Supabase)
 

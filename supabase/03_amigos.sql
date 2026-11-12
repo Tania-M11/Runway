@@ -182,3 +182,6 @@ grant execute on function public.solicitar_amistad(text) to authenticated;
 grant execute on function public.responder_solicitud(bigint, boolean) to authenticated;
 grant execute on function public.eliminar_amistad(bigint) to authenticated;
 grant execute on function public.mis_amigos() to authenticated;
+
+-- Parte 14: índice sugerido por el revisor de rendimiento
+create index if not exists amistades_solicitante on public.amistades (solicitante);

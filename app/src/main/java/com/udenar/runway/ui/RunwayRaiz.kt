@@ -29,6 +29,8 @@ import com.udenar.runway.ui.perfil.PerfilScreen
 import com.udenar.runway.ui.amigos.AmigosScreen
 import com.udenar.runway.ui.navegacion.RutaAmigos
 import com.udenar.runway.ui.navegacion.RutaMapasOffline
+import com.udenar.runway.ui.navegacion.RutaEditarPerfil
+import com.udenar.runway.ui.perfil.EditarPerfilScreen
 import com.udenar.runway.ui.offline.MapasOfflineScreen
 import com.udenar.runway.ui.theme.Espacio
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -263,8 +265,13 @@ private fun Principal(nombre: String, avatar: String) {
                 )
             }
             composable<RutaPerfil> {
-                PerfilScreen(onAmigos = { nav.navigate(RutaAmigos) }, onMapasOffline = { nav.navigate(RutaMapasOffline) })
+                PerfilScreen(
+                    onAmigos = { nav.navigate(RutaAmigos) },
+                    onMapasOffline = { nav.navigate(RutaMapasOffline) },
+                    onEditar = { nav.navigate(RutaEditarPerfil) },
+                )
             }
+            composable<RutaEditarPerfil> { entrada -> EditarPerfilScreen(onVolver = { nav.volverDesde(entrada) }) }
             composable<RutaMapasOffline> { entrada -> MapasOfflineScreen(onVolver = { nav.volverDesde(entrada) }) }
             composable<RutaAmigos> { entrada ->
                 val perfil by contenedor.preferenciasPerfil.perfil.collectAsStateWithLifecycle()

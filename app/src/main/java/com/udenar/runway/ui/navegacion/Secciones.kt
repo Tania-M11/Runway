@@ -86,6 +86,9 @@ data class GrafoPlanificar(
 /** Zonas de mapa descargadas para usar sin conexión. */
 @Serializable data object RutaMapasOffline
 
+/** Editar nombre, avatar, nivel y terreno. */
+@Serializable data object RutaEditarPerfil
+
 /** Historial y estadísticas. */
 @Serializable data object RutaHistorial
 

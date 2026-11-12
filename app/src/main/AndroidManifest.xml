@@ -17,9 +17,10 @@
     <!-- Notificación del entrenamiento en curso (Android 13+ la pide) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- El GPS se usa siempre que exista; sin él la app igual permite explorar y planificar -->
     <uses-feature
         android:name="android.hardware.location.gps"
-        android:required="true" />
+        android:required="false" />
 
     <application
         android:name=".RunwayApp"

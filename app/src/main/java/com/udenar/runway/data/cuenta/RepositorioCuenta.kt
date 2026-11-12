@@ -82,6 +82,13 @@ class RepositorioCuenta(
             supabase.from("perfiles").select { filter { eq("id", usuario.id) } }.decodeSingleOrNull<PerfilRemoto>()
         }.getOrNull()
         val local = perfiles.perfil.value
+        // Cambios del perfil hechos sin conexión: se suben antes de leer el del servidor
+        if (remoto != null && perfiles.perfilPendiente && local?.usuarioId == usuario.id) {
+            if (subirPerfil(local)) {
+                perfiles.perfilPendiente = false
+                return true
+            }
+        }
         if (remoto == null) {
             // Sin red: sirve la copia local si es de esta misma cuenta
             return local?.usuarioId == usuario.id
@@ -102,6 +109,31 @@ class RepositorioCuenta(
             ),
         )
         return true
+    }
+
+    /**
+     * Edición completa del perfil (especificación 5.12). Se guarda primero en el teléfono;
+     * si no hay red, queda marcado y se sube en el próximo inicio con conexión.
+     * Devuelve true si ya quedó también en Supabase.
+     */
+    suspend fun editarPerfil(nombre: String, avatar: String, nivel: Nivel, desnivel: PreferenciaDesnivel): Boolean {
+        perfiles.actualizar { it.copy(nombre = nombre.trim(), avatar = avatar, nivel = nivel, desnivel = desnivel) }
+        val actual = perfiles.perfil.value ?: return false
+        val subido = subirPerfil(actual)
+        perfiles.perfilPendiente = !subido
+        return subido
+    }
+
+    private suspend fun subirPerfil(p: PerfilCorredor): Boolean {
+        val id = supabase.auth.currentUserOrNull()?.id ?: return false
+        return runCatching {
+            supabase.from("perfiles").update(buildJsonObject {
+                put("nombre", p.nombre)
+                put("avatar", p.avatar)
+                p.nivel?.let { put("nivel", it.name) }
+                p.desnivel?.let { put("desnivel", it.name) }
+            }) { filter { eq("id", id) } }
+        }.isSuccess
     }
 
     /** Guarda nivel y desnivel en el teléfono y, si hay red, en Supabase. */
