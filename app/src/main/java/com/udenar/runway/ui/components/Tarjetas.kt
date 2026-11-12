@@ -102,10 +102,10 @@ fun TarjetaMetrica(
         )
         Spacer(Modifier.height(Espacio.xs))
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            // Números largos (p. ej. "71,2 km" en una tarjeta de un tercio) bajan de tamaño para no partir la unidad
+            // Números largos (p. ej. "71,2 km" o "135,0 km" en una tarjeta de un tercio) bajan de tamaño para no partir la unidad
             val largo = valor.length + unidad.length
             val estilo = when {
-                largo > 7 -> MaterialTheme.typography.headlineSmall
+                largo > 6 -> MaterialTheme.typography.titleLarge
                 largo > 5 -> MaterialTheme.typography.headlineMedium
                 else -> MaterialTheme.typography.displaySmall
             }
