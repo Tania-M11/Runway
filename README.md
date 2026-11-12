@@ -74,10 +74,19 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 5 | Room: guardar rutas (privada o reutilizable) y Mis rutas con filtros, renombrar y eliminar | 5.6, 5.11 | Hecha |
 | 6 | Entrenamiento activo con servicio en primer plano, pausa, recuperación tras cierre y resumen | 5.7, 5.8, 5.9 | Hecha |
 | 7 | Historial (7 días, 30 días, 12 meses), gráficas, récords e Inicio con datos reales | 5.10, 5.2 | Hecha |
-| 8 | Cuentas: bienvenida, registro con avatar, inicio de sesión, perfil con código de amigo | Acceso, 5.12 | En curso (falta el proyecto Supabase) |
-| 9 | Sincronización de rutas y entrenamientos con Supabase (WorkManager) | 7 | Código listo, falta probar con el servidor |
+| 8 | Cuentas: bienvenida, registro con avatar, inicio de sesión, perfil con código de amigo | Acceso, 5.12 | Hecha |
+| 9 | Sincronización de rutas y entrenamientos con Supabase (WorkManager) | 7 | Hecha |
 | 10 | Amigos por código con aceptación y ubicación en vivo mientras entrenan | — | |
 | 11 | Perfil editable y pruebas de campo | 5.12 | |
+
+## Backend (Supabase)
+
+Proyecto `runway`. Los esquemas están en `supabase/` y se aplican en orden:
+
+1. `01_perfiles.sql`: perfil por cuenta (nombre, avatar, código de amigo, nivel y desnivel), creado por un trigger al registrarse.
+2. `02_sincronizacion.sql`: copia remota de rutas y entrenamientos con seguridad por filas (cada cuenta solo ve lo suyo).
+
+En Authentication está apagado "Confirm email" para poder probar con varias cuentas.
 
 ## Compilar
 
