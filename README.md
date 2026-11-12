@@ -1,10 +1,10 @@
 # RUNWAY
 
-App Android de running: planifica recorridos en cualquier lugar (las primeras pruebas de campo son en Ipiales, Nariño) con distancia objetivo, registra el entrenamiento por GPS aunque no haya internet y guarda un catálogo propio de rutas.
+App Android de running: planifica recorridos en cualquier lugar con distancia objetivo, registra el entrenamiento por GPS aunque no haya internet y guarda un catálogo propio de rutas.
 
 Proyecto de clase sobre **integración de mapas en el desarrollo móvil**: el mapa no es solo un elemento gráfico, sino un flujo de información y control que atraviesa las capas de la arquitectura (MVVM).
 
-## Tecnologías (todas gratuitas)
+## Tecnologías 
 
 | Componente | Tecnología |
 |---|---|
@@ -140,66 +140,4 @@ Valhalla calcula caminos entre puntos, pero no "un circuito de 5 km". `data/ruta
 - **Cálculo (`domain/Guia.kt`):** la posición se proyecta sobre el segmento más cercano de la ruta para saber los km recorridos y restantes y la distancia a la ruta. En un circuito se busca cerca del último segmento conocido, para no confundir el final con el inicio. El aviso de desvío tiene histéresis: sale a más de 30 m y vuelve a menos de 20 m.
 - **Funciona con la pantalla apagada:** la guía corre dentro de la sesión de entrenamiento (servicio en primer plano). La notificación muestra "faltan X km" y el teléfono vibra al desviarse, al volver y al llegar.
 
-## Estructura
 
-```
-com.udenar.runway
-├─ data/              capa de datos
-│  ├─ ubicacion/      GPS, satélites GNSS y brújula (android.location, sensores)
-│  ├─ lugares/        buscador Photon + Geocoder de respaldo
-│  ├─ rutas/          cliente de Valhalla y planificador
-│  ├─ local/          Room (SQLite): rutas, entrenamientos, puntos GPS
-│  ├─ entrenamiento/  sesión, servicio en primer plano, vibración
-│  ├─ offline/        mapas sin conexión (OfflineManager)
-│  ├─ cuenta/         registro, sesión y perfil (Supabase Auth)
-│  ├─ sync/           sincronización con Supabase (WorkManager)
-│  ├─ amigos/         amistades y ubicación en vivo (Realtime)
-│  ├─ preferencias/   copia local del perfil, del mapa y del último plan
-│  └─ red/            cliente HTTP compartido y monitor de conexión
-├─ domain/            modelos y reglas puras (rutas, guía, destinos, teselas, estadísticas)
-├─ ui/                pantallas Compose + ViewModel por módulo
-│  └─ mapa/           MapaRunway (MapView) y ControladorMapa
-└─ di/                AppContainer
-```
-
-## Plan de desarrollo por partes
-
-Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_RUNWAY.docx`): morado `#7668E8`, lima `#D5F36A`, tarjetas redondeadas y barra inferior con Inicio, Explorar, Entrenar, Mis rutas y Perfil.
-
-| # | Parte | Pantallas de la especificación | Estado |
-|---|---|---|---|
-| 0 | Base del proyecto, dependencias, permisos y repositorio | | Hecha |
-| 1 | Sistema visual (colores, Plus Jakarta Sans, componentes) y navegación inferior | 4, Inicio vacío (5.2) | Hecha |
-| 2 | Explorar: `MapView`, teselas, gestos, buscador de lugares de cualquier ciudad, error y reintento | 5.3 | Hecha |
-| 3 | Ubicación (`LocationManager`), configuración inicial del corredor, posición en vivo y centrar en mí | 5.1, 5.3 | Hecha |
-| 4 | Planificar con Valhalla: circuitos, comparación y detalle | 5.4, 5.5, 5.6 | Hecha |
-| 5 | Room: guardar rutas (privada o reutilizable) y Mis rutas con filtros, renombrar y eliminar | 5.6, 5.11 | Hecha |
-| 6 | Entrenamiento activo con servicio en primer plano, pausa, recuperación tras cierre y resumen | 5.7, 5.8, 5.9 | Hecha |
-| 7 | Historial (7 días, 30 días, 12 meses), gráficas, récords e Inicio con datos reales | 5.10, 5.2 | Hecha |
-| 8 | Cuentas: bienvenida, registro con avatar, inicio de sesión, perfil con código de amigo | Acceso, 5.12 | Hecha |
-| 9 | Sincronización de rutas y entrenamientos con Supabase (WorkManager) | 7 | Hecha |
-| 10 | Amigos por código con aceptación y ubicación en vivo mientras entrenan (Realtime) | — | Hecha |
-| 11 | Destino y sugerencias: elegir a dónde llegar (mapa con pin central, búsqueda o lugares sugeridos a la distancia pedida), rutas alternativas hacia el destino; ControladorMapa | 5.4–5.6 | Hecha |
-| 12 | Mapas sin conexión: descargar la zona de una ruta o lo que se ve en Explorar, progreso, superposición del área y gestión en Perfil | 5.3 | Hecha |
-| 13 | Guía en vivo: mapa orientado (rumbo GPS o brújula) e inclinado, tramo recorrido/pendiente, km restantes, aviso de desvío y llegada con vibración | 5.7 | Hecha |
-| 14 | Perfil editable (nombre, avatar, nivel, terreno; se sube al volver la conexión), estado de permisos y lista de pruebas de campo (`docs/pruebas-de-campo.md`) | 5.12 | Hecha |
-
-## Backend (Supabase)
-
-Proyecto `runway`. Los esquemas están en `supabase/` y se aplican en orden:
-
-1. `01_perfiles.sql`: perfil por cuenta (nombre, avatar, código de amigo, nivel y desnivel), creado por un trigger al registrarse.
-2. `02_sincronizacion.sql`: copia remota de rutas y entrenamientos con seguridad por filas (cada cuenta solo ve lo suyo).
-
-3. `03_amigos.sql`: amistades con aceptación (funciones `solicitar_amistad`, `responder_solicitud`, `eliminar_amistad`, `mis_amigos`) y `ubicaciones_en_vivo`, publicada en Supabase Realtime. Solo los amigos aceptados ven la ubicación, y solo existe mientras el entrenamiento está activo.
-
-En Authentication está apagado "Confirm email" para poder probar con varias cuentas.
-
-## Compilar
-
-Abrir la carpeta en Android Studio. Las claves de Supabase van en `local.properties` (no se sube a GitHub):
-
-```
-SUPABASE_URL=https://<ref>.supabase.co
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-```
