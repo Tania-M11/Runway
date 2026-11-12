@@ -57,7 +57,7 @@ class ServicioEntrenamiento : Service() {
                     return@launch
                 }
                 sesion.estado
-                    .map { Triple(it.estado, (it.distanciaM / 10).toInt(), it.acumuladoMs) } // refresca cada 10 m
+                    .map { listOf(it.estado, (it.distanciaM / 10).toInt(), it.acumuladoMs, it.guia?.fueraDeRuta, it.guia?.llegada) } // refresca cada 10 m
                     .distinctUntilChanged()
                     .collect {
                         val s = sesion.estado.value
@@ -79,7 +79,15 @@ class ServicioEntrenamiento : Service() {
         return NotificationCompat.Builder(this, CANAL)
             .setSmallIcon(R.drawable.ic_notificacion)
             .setContentTitle(if (activo) "Entrenamiento en curso" else "Entrenamiento pausado")
-            .setContentText("${formatoKm(s.distanciaM / 1000)} km · se guarda en el teléfono")
+            .setContentText(
+                s.guia?.let { g ->
+                    when {
+                        g.llegada -> "${formatoKm(s.distanciaM / 1000)} km · ¡llegaste al final de la ruta!"
+                        g.fueraDeRuta -> "${formatoKm(s.distanciaM / 1000)} km · te saliste de la ruta"
+                        else -> "${formatoKm(s.distanciaM / 1000)} km · faltan ${formatoKm(g.restanteKm)} km"
+                    }
+                } ?: "${formatoKm(s.distanciaM / 1000)} km · se guarda en el teléfono",
+            )
             .setContentIntent(abrir)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

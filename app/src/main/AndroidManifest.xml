@@ -12,6 +12,8 @@
     <!-- Registro con la pantalla apagada: servicio en primer plano de tipo ubicación -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Avisos por vibración de la guía en vivo (desvío y llegada) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Notificación del entrenamiento en curso (Android 13+ la pide) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 

@@ -10,7 +10,9 @@ import com.udenar.runway.data.local.PuntoGpsEntidad
 import com.udenar.runway.data.ubicacion.RepositorioUbicacion
 import com.udenar.runway.domain.Coordenada
 import com.udenar.runway.domain.EstadoEntrenamiento
+import com.udenar.runway.domain.EstadoGuia
 import com.udenar.runway.domain.FiltroGps
+import com.udenar.runway.domain.Guia
 import com.udenar.runway.domain.PosicionGps
 import com.udenar.runway.domain.RutaReferencia
 import com.udenar.runway.domain.codificarPolyline
@@ -46,6 +48,8 @@ data class EstadoSesion(
     val ultimaRecepcionEn: Long = 0,
     /** La sesión se recuperó tras un cierre inesperado de la app. */
     val recuperada: Boolean = false,
+    /** Guía en vivo sobre la ruta de referencia (avance, lo que falta, desvío y llegada). */
+    val guia: EstadoGuia? = null,
 ) {
     val enCurso: Boolean get() = estado == EstadoEntrenamiento.Activo || estado == EstadoEntrenamiento.Pausado
     fun duracionMs(ahora: Long): Long = acumuladoMs + (tramoInicioEn?.let { (ahora - it).coerceAtLeast(0) } ?: 0)
@@ -68,6 +72,7 @@ class SesionEntrenamiento(
     private val dao: EntrenamientosDao,
     /** Comparte la posición con los amigos mientras el entrenamiento está activo (parte 10). */
     private val publicador: PublicadorUbicacion? = null,
+    private val vibrador: Vibrador? = null,
     private val reloj: () -> Long = System::currentTimeMillis,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -82,6 +87,15 @@ class SesionEntrenamiento(
     private var altitudReferencia: Double? = null
     /** (tiempo, distancia acumulada) de los últimos 30 s, para el ritmo actual. */
     private val ventana = ArrayDeque<Pair<Long, Double>>()
+
+    // Ruta de referencia preparada para la guía (kilómetros acumulados por punto)
+    private var rutaGuia: List<Coordenada> = emptyList()
+    private var acumuladasGuia = DoubleArray(0)
+
+    private fun prepararGuia(referencia: RutaReferencia?) {
+        rutaGuia = referencia?.puntos?.takeIf { it.size >= 2 }.orEmpty()
+        acumuladasGuia = Guia.acumuladas(rutaGuia)
+    }
 
     // ------------------------------------------------------------------ Control
 
@@ -106,6 +120,7 @@ class SesionEntrenamiento(
         )
         entidad = e
         reiniciarCalculos()
+        prepararGuia(referencia)
         _estado.value = EstadoSesion(
             id = e.id,
             estado = EstadoEntrenamiento.Activo,
@@ -184,6 +199,7 @@ class SesionEntrenamiento(
         entidad = pausada
         bloqueo.withLock { dao.actualizar(pausada) }
         reiniciarCalculos()
+        prepararGuia(e.rutaTrazado?.let { RutaReferencia(e.rutaId, e.rutaNombre ?: "Ruta", decodificarPolyline(it)) })
         val segmentos = puntos.groupBy { it.segmento }.toSortedMap().values.map { t -> t.map { Coordenada(it.lat, it.lon) } }
         _estado.value = EstadoSesion(
             id = e.id,
@@ -213,6 +229,7 @@ class SesionEntrenamiento(
         _estado.update { it.copy(ultimaPosicion = p, ultimaRecepcionEn = ahora) }
         val s = _estado.value
         if (s.estado != EstadoEntrenamiento.Activo) return
+        actualizarGuia(p)
         val decision = FiltroGps.evaluar(ultimaAceptada, p)
         if (decision !is FiltroGps.Decision.Aceptar) return
         ultimaAceptada = p
@@ -267,6 +284,23 @@ class SesionEntrenamiento(
                 actualizada,
             )
         }
+    }
+
+    /**
+     * Guía en vivo: proyecta la posición sobre la ruta y vibra al salirse (>30 m),
+     * al volver y al llegar. Corre en la sesión, así funciona con la pantalla apagada.
+     */
+    private fun actualizarGuia(p: PosicionGps) {
+        if (rutaGuia.size < 2 || p.precisionM > FiltroGps.PRECISION_MAX_M) return
+        val anterior = _estado.value.guia
+        val proyeccion = Guia.seguir(rutaGuia, acumuladasGuia, p.coordenada, anterior?.proyeccion?.indice)
+        val nueva = Guia.actualizar(anterior, proyeccion, acumuladasGuia.last())
+        when {
+            !nueva.llegada && nueva.fueraDeRuta && anterior?.fueraDeRuta != true -> vibrador?.desvio()
+            !nueva.fueraDeRuta && anterior?.fueraDeRuta == true -> vibrador?.regreso()
+        }
+        if (nueva.llegada && anterior?.llegada != true) vibrador?.llegada()
+        _estado.update { it.copy(guia = nueva) }
     }
 
     // ------------------------------------------------------------------ Auxiliares

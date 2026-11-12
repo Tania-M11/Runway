@@ -32,6 +32,8 @@ sealed interface ComandoMapa {
     data class MoverCamara(val destino: Coordenada, val zoom: Double) : ComandoMapa
     /** Ajusta la cámara para que se vean todos los puntos (p. ej. una ruta completa). */
     data class Encuadrar(val puntos: List<Coordenada>, val margenPx: Int = 120) : ComandoMapa
+    /** Seguir al corredor con el mapa girado hacia donde va (rumbo) e inclinado en 3D. */
+    data class Seguir(val destino: Coordenada, val zoom: Double, val rumbo: Double, val inclinacion: Double) : ComandoMapa
 }
 
 /** Amigo que está corriendo ahora (se dibuja con su avatar). */

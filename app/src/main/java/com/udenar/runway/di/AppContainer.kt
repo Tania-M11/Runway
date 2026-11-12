@@ -18,6 +18,8 @@ import io.github.jan.supabase.serializer.KotlinXSerializer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.udenar.runway.data.entrenamiento.SesionEntrenamiento
+import com.udenar.runway.data.entrenamiento.Vibrador
+import com.udenar.runway.data.ubicacion.Brujula
 import com.udenar.runway.data.local.RepositorioEntrenamientos
 import com.udenar.runway.data.local.RepositorioRutas
 import com.udenar.runway.data.local.RunwayDatabase
@@ -60,7 +62,8 @@ class AppContainer(context: Context) {
     val entrenamientos by lazy { RepositorioEntrenamientos(baseDatos.entrenamientos()) }
 
     /** Sesión de entrenamiento única, compartida por la pantalla y el servicio en primer plano. */
-    val sesion by lazy { SesionEntrenamiento(app, ubicacion, baseDatos.entrenamientos(), publicador) }
+    val sesion by lazy { SesionEntrenamiento(app, ubicacion, baseDatos.entrenamientos(), publicador, Vibrador(app)) }
+    val brujula by lazy { Brujula(app) }
 
     // Supabase: la URL y la clave publicable vienen de local.properties (BuildConfig)
     val supabase by lazy {

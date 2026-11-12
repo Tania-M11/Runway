@@ -63,6 +63,13 @@ Además ejecuta las órdenes de cámara (mover, encuadrar) y registra los evento
 
 `data/offline/RepositorioMapasOffline.kt` usa el `OfflineManager` de MapLibre. La app solo define el área (un recuadro) y los zooms (11 a 16). El motor descarga por su cuenta el estilo, las fuentes, los íconos y todas las teselas del área, informa el progreso y, cuando no hay internet, el `MapView` las usa sin ningún cambio en el código. Antes de descargar, `domain/MapasOffline.kt` estima cuántas teselas son (en el zoom z hay 2^z × 2^z teselas en el mundo) para no bajar zonas enormes del servidor público.
 
+## Guía en vivo durante el entrenamiento
+
+- **Hardware (mecanismo 1):** el rumbo del GPS (`Location.bearing`) orienta el mapa al correr; quieto, se usa la brújula (sensor de rotación, `data/ubicacion/Brujula.kt`). Los avisos se dan con el vibrador.
+- **Cámara (mecanismo 4):** `ComandoMapa.Seguir` mueve la cámara con rumbo e inclinación 3D; un botón alterna entre modo guía y norte arriba.
+- **Cálculo (`domain/Guia.kt`):** la posición se proyecta sobre el segmento más cercano de la ruta para saber los km recorridos y restantes y la distancia a la ruta. En un circuito se busca cerca del último segmento conocido, para no confundir el final con el inicio. El aviso de desvío tiene histéresis: sale a más de 30 m y vuelve a menos de 20 m.
+- **Funciona con la pantalla apagada:** la guía corre dentro de la sesión de entrenamiento (servicio en primer plano). La notificación muestra "faltan X km" y el teléfono vibra al desviarse, al volver y al llegar.
+
 ## Estructura
 
 ```
@@ -95,8 +102,8 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 9 | Sincronización de rutas y entrenamientos con Supabase (WorkManager) | 7 | Hecha |
 | 10 | Amigos por código con aceptación y ubicación en vivo mientras entrenan (Realtime) | — | Hecha |
 | 11 | Destino y sugerencias: elegir a dónde llegar (mapa con pin central, búsqueda o lugares sugeridos a la distancia pedida), rutas alternativas hacia el destino; ControladorMapa | 5.4–5.6 | Hecha |
-| 12 | Mapas sin conexión: descargar la zona de una ruta o lo que se ve en Explorar, progreso, superposición del área y gestión en Perfil | 5.3 | Hecha (falta probar en el teléfono) |
-| 13 | Guía en vivo: mapa orientado, progreso sobre la ruta, km restantes y aviso de desvío | 5.7 | |
+| 12 | Mapas sin conexión: descargar la zona de una ruta o lo que se ve en Explorar, progreso, superposición del área y gestión en Perfil | 5.3 | Hecha |
+| 13 | Guía en vivo: mapa orientado (rumbo GPS o brújula) e inclinado, tramo recorrido/pendiente, km restantes, aviso de desvío y llegada con vibración | 5.7 | Hecha |
 | 14 | Perfil editable y pruebas de campo | 5.12 | |
 
 ## Backend (Supabase)

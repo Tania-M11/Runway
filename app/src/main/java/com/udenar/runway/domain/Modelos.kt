@@ -30,6 +30,8 @@ data class PosicionGps(
     val altitudM: Double?,
     val velocidadMs: Float?,
     val deGps: Boolean,
+    /** Dirección de movimiento según el GPS (0 = norte); solo es fiable en movimiento. */
+    val rumboGrados: Float? = null,
 )
 
 /**

@@ -205,6 +205,17 @@ class ControladorMapa(private val mapa: MapLibreMap, private val context: Contex
 
     fun ejecutar(comando: ComandoMapa) {
         when (comando) {
+            is ComandoMapa.Seguir -> mapa.animateCamera(
+                CameraUpdateFactory.newCameraPosition(
+                    CameraPosition.Builder()
+                        .target(LatLng(comando.destino.lat, comando.destino.lon))
+                        .zoom(comando.zoom)
+                        .bearing(comando.rumbo)
+                        .tilt(comando.inclinacion)
+                        .build(),
+                ),
+                900,
+            )
             is ComandoMapa.MoverCamara -> mapa.animateCamera(
                 CameraUpdateFactory.newLatLngZoom(LatLng(comando.destino.lat, comando.destino.lon), comando.zoom),
                 900,

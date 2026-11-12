@@ -17,7 +17,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.MyLocation
+import androidx.compose.material.icons.outlined.Navigation
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import com.udenar.runway.domain.Guia
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.AlertDialog
@@ -55,6 +62,10 @@ import com.udenar.runway.ui.theme.Runway
 
 private const val COLOR_TRAZADO = "#7668E8"
 private const val COLOR_REFERENCIA = "#9AA3B5"
+/** Tramo de la ruta ya recorrido (lima oscuro para que se vea sobre el mapa claro). */
+private const val COLOR_RUTA_HECHA = "#8DB534"
+/** Línea de regreso a la ruta cuando el corredor se desvía. */
+private const val COLOR_REGRESO = "#D64545"
 
 /**
  * Entrenamiento activo y pausa (especificación 5.7 y 5.8). Sin barra inferior para evitar
@@ -81,10 +92,24 @@ fun EntrenamientoActivoScreen(
         val c = s.ultimaPosicion?.coordenada ?: s.referencia?.puntos?.firstOrNull()
         if (c != null) PosicionCamara(c, 16.5) else CAMARA_POR_DEFECTO
     }
+    val guia = s.guia
     val trazos = buildList {
-        s.referencia?.let { add(TrazoRuta("referencia", it.puntos, COLOR_REFERENCIA, seleccionada = false)) }
+        val ref = s.referencia
+        if (ref != null && guia != null) {
+            // Guía en vivo: la ruta se parte en lo recorrido (lima) y lo pendiente (gris)
+            val (hecho, pendiente) = Guia.partir(ref.puntos, guia.proyeccion)
+            add(TrazoRuta("referencia-pendiente", pendiente, COLOR_REFERENCIA, seleccionada = false))
+            add(TrazoRuta("referencia-hecha", hecho, COLOR_RUTA_HECHA, seleccionada = true))
+        } else if (ref != null) {
+            add(TrazoRuta("referencia", ref.puntos, COLOR_REFERENCIA, seleccionada = false))
+        }
         s.segmentos.filter { it.size > 1 }.forEachIndexed { i, tramo -> add(TrazoRuta("tramo-$i", tramo, COLOR_TRAZADO, seleccionada = true)) }
+        // Desviado: línea desde donde está hasta el punto más cercano de la ruta
+        val yo = s.ultimaPosicion?.coordenada
+        if (guia?.fueraDeRuta == true && yo != null) add(TrazoRuta("regreso", listOf(yo, guia.proyeccion.punto), COLOR_REGRESO, seleccionada = false))
     }
+    val ciclo = LocalLifecycleOwner.current
+    LaunchedEffect(Unit) { ciclo.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.escucharBrujula() } }
 
     Column(Modifier.fillMaxSize()) {
         // --- Mapa con el trazado en tiempo real
@@ -112,16 +137,36 @@ fun EntrenamientoActivoScreen(
                         }
                     }
                 }
+                when {
+                    guia?.llegada == true -> AvisoEstado(TipoAviso.Sincronizado, "¡Llegaste! Completaste la ruta")
+                    guia?.fueraDeRuta == true -> AvisoEstado(
+                        TipoAviso.Error,
+                        "Te saliste de la ruta · está a ${guia.proyeccion.desvioM.toInt()} m (línea roja)",
+                    )
+                }
                 if (ui.gpsDebil) AvisoEstado(TipoAviso.GpsDebil, "Señal GPS débil: seguimos intentando")
                 if (!ui.conectado) AvisoEstado(TipoAviso.SinConexion, "Sin conexión: se guarda en el teléfono")
                 if (s.recuperada) AvisoEstado(TipoAviso.PendienteSincronizar, "Recuperamos tu entrenamiento sin terminar")
             }
-            if (!ui.siguiendo) {
+            Column(
+                Modifier.align(Alignment.BottomEnd).padding(Espacio.l),
+                verticalArrangement = Arrangement.spacedBy(Espacio.s),
+            ) {
+                // Modo guía (mapa girado e inclinado) ↔ norte arriba
                 BotonCircular(
-                    Icons.Outlined.MyLocation, "Seguir mi posición", onClick = vm::seguir,
-                    sombra = 6.dp, tamano = 52.dp, colorIcono = Runway.MoradoOscuro,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(Espacio.l),
+                    if (ui.modoGuia) Icons.Outlined.Navigation else Icons.Outlined.Explore,
+                    if (ui.modoGuia) "Cambiar a norte arriba" else "Cambiar a modo guía",
+                    onClick = vm::alternarModoGuia,
+                    sombra = 6.dp, tamano = 52.dp,
+                    fondo = if (ui.modoGuia) Runway.Morado else Runway.Superficie,
+                    colorIcono = if (ui.modoGuia) Runway.Lima else Runway.MoradoOscuro,
                 )
+                if (!ui.siguiendo) {
+                    BotonCircular(
+                        Icons.Outlined.MyLocation, "Seguir mi posición", onClick = vm::seguir,
+                        sombra = 6.dp, tamano = 52.dp, colorIcono = Runway.MoradoOscuro,
+                    )
+                }
             }
         }
 
@@ -152,6 +197,25 @@ fun EntrenamientoActivoScreen(
                     Metrica("Tiempo", formatoCronometro(ui.duracionMs), Modifier.weight(1f))
                     Metrica("Ritmo actual", if (pausado) "--:--" else formatoRitmo(s.ritmoActualSegKm), Modifier.weight(1f), "/km")
                     Metrica("Ritmo medio", formatoRitmo(ui.ritmoPromedioSegKm), Modifier.weight(1f), "/km")
+                }
+                if (guia != null) {
+                    // Avance sobre la ruta: lo que falta y una barra de progreso
+                    Spacer(Modifier.height(Espacio.m))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (guia.llegada) "Ruta completada" else "Faltan ${formatoKm(guia.restanteKm)} km de la ruta",
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text("${(guia.fraccion * 100).toInt()} %", style = MaterialTheme.typography.labelLarge, color = Runway.MoradoOscuro)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = { guia.fraccion },
+                        color = Runway.Morado,
+                        trackColor = Runway.LavandaClaro,
+                        modifier = Modifier.fillMaxWidth().height(8.dp),
+                    )
                 }
                 Spacer(Modifier.height(Espacio.l))
                 // Botones grandes y separados (especificación, sección 8)

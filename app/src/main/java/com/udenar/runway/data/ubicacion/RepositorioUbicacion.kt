@@ -111,4 +111,5 @@ private fun Location.aPosicion() = PosicionGps(
     altitudM = if (hasAltitude()) altitude else null,
     velocidadMs = if (hasSpeed()) speed else null,
     deGps = provider == LocationManager.GPS_PROVIDER,
+    rumboGrados = if (hasBearing()) bearing else null,
 )
