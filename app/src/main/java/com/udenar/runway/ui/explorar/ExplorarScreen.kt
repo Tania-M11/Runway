@@ -40,6 +40,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.outlined.CloudDownload
+import com.udenar.runway.ui.offline.comoSuperposiciones
+import com.udenar.runway.ui.offline.formatoMegas
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -100,6 +108,39 @@ fun ExplorarScreen(
     LaunchedEffect(Unit) { ciclo.repeatOnLifecycle(Lifecycle.State.STARTED) { vm.seguirAmigos() } }
     val pedirPermiso = rememberPedirPermisoUbicacion(vm::onResultadoPermiso)
 
+    var confirmarDescarga by remember { mutableStateOf(false) }
+    if (confirmarDescarga) {
+        val teselas = estado.teselasVista
+        val grande = teselas > com.udenar.runway.domain.Teselas.LIMITE
+        AlertDialog(
+            onDismissRequest = { confirmarDescarga = false },
+            containerColor = Runway.Fondo,
+            title = { Text("Mapa sin conexión") },
+            text = {
+                Text(
+                    if (grande) "Lo que ves es demasiado grande para descargar ($teselas teselas). Acércate un poco y vuelve a intentarlo."
+                    else "Se guardará el mapa de lo que ves en pantalla (≈ ${"%.0f".format(com.udenar.runway.domain.Teselas.megasEstimados(teselas))} MB) " +
+                        "para verlo aunque no tengas señal. Puedes borrarlo en Perfil → Mapas sin conexión.",
+                )
+            },
+            confirmButton = {
+                if (!grande) TextButton(onClick = {
+                    confirmarDescarga = false
+                    vm.descargarVista()
+                }) { Text("Descargar", color = Runway.Morado) }
+            },
+            dismissButton = { TextButton(onClick = { confirmarDescarga = false }) { Text(if (grande) "Entendido" else "Cancelar", color = Runway.TextoSecundario) } },
+        )
+    }
+    estado.mensajeDescarga?.let { m ->
+        AlertDialog(
+            onDismissRequest = vm::cerrarMensajeDescarga,
+            containerColor = Runway.Fondo,
+            text = { Text(m) },
+            confirmButton = { TextButton(onClick = vm::cerrarMensajeDescarga) { Text("Entendido", color = Runway.Morado) } },
+        )
+    }
+
     val onCentrar: () -> Unit = {
         when {
             estado.permisoUbicacion -> vm.centrarEnMi()
@@ -114,6 +155,8 @@ fun ExplorarScreen(
             puntoSeleccionado = estado.seleccionado?.coordenada,
             miPosicion = estado.miPosicion?.coordenada,
             amigos = estado.amigos.map { MarcadorAmigo(it.id, it.nombre, it.avatar, it.coordenada) },
+            superposiciones = estado.zonasOffline.comoSuperposiciones(),
+            onLimitesVisibles = vm::onVista,
             comandos = vm.comandos,
             intentoCarga = estado.intentoCarga,
             onEstiloCargado = vm::onEstiloCargado,
@@ -152,8 +195,22 @@ fun ExplorarScreen(
                 },
             )
             if (!estado.conectado) {
-                AvisoEstado(TipoAviso.SinConexion, "Sin conexión: verás solo lo que el mapa ya cargó")
-            } else if (!estado.mapaListo && !estado.errorMapa) {
+                if (estado.sobreZonaDescargada) AvisoEstado(TipoAviso.Sincronizado, "Sin conexión · usando el mapa descargado")
+                else AvisoEstado(TipoAviso.SinConexion, "Sin conexión: verás solo lo que el mapa ya cargó")
+            }
+            estado.progresoDescarga?.takeIf { !it.terminada }?.let { p ->
+                Surface(shape = RoundedCornerShape(50), color = Runway.Superficie, shadowElevation = 2.dp) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = Espacio.l, vertical = Espacio.s)) {
+                        Icon(Icons.Outlined.CloudDownload, null, tint = Runway.MoradoOscuro, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(Espacio.s))
+                        Text(
+                            "Descargando mapa… ${(p.fraccion * 100).toInt()} % · ${formatoMegas(p.bytes)}",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
+            }
+            if (estado.conectado && !estado.mapaListo && !estado.errorMapa) {
                 PildoraCargando("Cargando mapa…")
             }
             when (estado.aviso) {
@@ -218,6 +275,16 @@ fun ExplorarScreen(
                     }
                 }
                 Spacer(Modifier.weight(1f))
+                // Descargar lo que se ve para usarlo sin conexión
+                BotonCircular(
+                    icono = Icons.Outlined.CloudDownload,
+                    descripcion = "Descargar el mapa de esta zona",
+                    onClick = { confirmarDescarga = true },
+                    tamano = 52.dp,
+                    sombra = 6.dp,
+                    colorIcono = Runway.MoradoOscuro,
+                )
+                Spacer(Modifier.width(Espacio.s))
                 BotonCircular(
                     icono = if (estado.permisoUbicacion) Icons.Outlined.MyLocation else Icons.Outlined.LocationSearching,
                     descripcion = "Centrar en mi ubicación",

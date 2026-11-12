@@ -28,6 +28,8 @@ import com.udenar.runway.ui.components.EstadoVacio
 import com.udenar.runway.ui.perfil.PerfilScreen
 import com.udenar.runway.ui.amigos.AmigosScreen
 import com.udenar.runway.ui.navegacion.RutaAmigos
+import com.udenar.runway.ui.navegacion.RutaMapasOffline
+import com.udenar.runway.ui.offline.MapasOfflineScreen
 import com.udenar.runway.ui.theme.Espacio
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.launch
@@ -260,7 +262,10 @@ private fun Principal(nombre: String, avatar: String) {
                     onEntrenar = { nav.navigate(RutaEntrenamientoActivo) { launchSingleTop = true } },
                 )
             }
-            composable<RutaPerfil> { PerfilScreen(onAmigos = { nav.navigate(RutaAmigos) }) }
+            composable<RutaPerfil> {
+                PerfilScreen(onAmigos = { nav.navigate(RutaAmigos) }, onMapasOffline = { nav.navigate(RutaMapasOffline) })
+            }
+            composable<RutaMapasOffline> { MapasOfflineScreen(onVolver = { nav.popBackStack() }) }
             composable<RutaAmigos> {
                 val perfil by contenedor.preferenciasPerfil.perfil.collectAsStateWithLifecycle()
                 AmigosScreen(miCodigo = perfil?.codigo.orEmpty(), onVolver = { nav.popBackStack() })

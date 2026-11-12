@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
@@ -59,7 +60,7 @@ import kotlinx.coroutines.launch
  * Editar nombre, avatar y preferencias llega en la parte 11.
  */
 @Composable
-fun PerfilScreen(onAmigos: () -> Unit) {
+fun PerfilScreen(onAmigos: () -> Unit, onMapasOffline: () -> Unit) {
     val context = LocalContext.current
     val contenedor = (context.applicationContext as RunwayApp).contenedor
     val perfil by contenedor.preferenciasPerfil.perfil.collectAsStateWithLifecycle()
@@ -127,6 +128,14 @@ fun PerfilScreen(onAmigos: () -> Unit) {
             icono = Icons.Outlined.Groups,
             onClick = onAmigos,
             fondoIcono = Runway.LimaClaro,
+        )
+
+        TarjetaAcceso(
+            titulo = "Mapas sin conexión",
+            descripcion = "Zonas guardadas en el teléfono para correr sin señal",
+            icono = Icons.Outlined.CloudDownload,
+            onClick = onMapasOffline,
+            fondoIcono = Runway.LavandaClaro,
         )
 
         TarjetaRunway(Modifier.fillMaxWidth()) {

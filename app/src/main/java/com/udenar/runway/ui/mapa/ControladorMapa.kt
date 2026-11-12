@@ -230,6 +230,12 @@ class ControladorMapa(private val mapa: MapLibreMap, private val context: Contex
         }
     }
 
+    /** Recuadro que se ve en pantalla (proyección pantalla → coordenadas). */
+    fun limitesVisibles(): Pair<Coordenada, Coordenada>? = runCatching {
+        val b = mapa.projection.visibleRegion.latLngBounds
+        Coordenada(b.latitudeSouth, b.longitudeWest) to Coordenada(b.latitudeNorth, b.longitudeEast)
+    }.getOrNull()
+
     /** Centro actual de la cámara (para el selector con pin fijo en el centro). */
     fun centro(): Coordenada? = mapa.cameraPosition.target?.let { Coordenada(it.latitude, it.longitude) }
 
@@ -241,11 +247,13 @@ class ControladorMapa(private val mapa: MapLibreMap, private val context: Contex
         onToqueLugar: () -> ((String) -> Unit)?,
         onCamaraQuieta: (PosicionCamara) -> Unit,
         onArrastre: () -> Unit,
+        onLimitesVisibles: (Coordenada, Coordenada) -> Unit = { _, _ -> },
     ) {
         mapa.addOnCameraIdleListener {
             mapa.cameraPosition.target?.let {
                 onCamaraQuieta(PosicionCamara(Coordenada(it.latitude, it.longitude), mapa.cameraPosition.zoom))
             }
+            limitesVisibles()?.let { (sw, ne) -> onLimitesVisibles(sw, ne) }
         }
         mapa.addOnMoveListener(object : MapLibreMap.OnMoveListener {
             override fun onMoveBegin(detector: MoveGestureDetector) = onArrastre()

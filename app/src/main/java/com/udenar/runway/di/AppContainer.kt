@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.udenar.runway.BuildConfig
 import com.udenar.runway.data.amigos.AmigosEnVivo
+import com.udenar.runway.data.offline.RepositorioMapasOffline
 import com.udenar.runway.data.amigos.PublicadorUbicacion
 import com.udenar.runway.data.amigos.RepositorioAmigos
 import com.udenar.runway.data.cuenta.RepositorioCuenta
@@ -73,6 +74,7 @@ class AppContainer(context: Context) {
             install(Realtime)
         }
     }
+    val mapasOffline by lazy { RepositorioMapasOffline(app) }
     val amigos by lazy { RepositorioAmigos(supabase) }
     val amigosEnVivo by lazy { AmigosEnVivo(supabase) }
     private val publicador by lazy { PublicadorUbicacion(supabase, preferenciasPerfil) }

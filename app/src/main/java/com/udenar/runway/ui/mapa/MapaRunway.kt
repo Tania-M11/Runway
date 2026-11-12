@@ -82,6 +82,8 @@ fun MapaRunway(
     onToqueLugar: ((String) -> Unit)? = null,
     /** El usuario arrastró el mapa con el dedo (p. ej. para dejar de seguir su posición). */
     onArrastre: () -> Unit = {},
+    /** Recuadro visible cada vez que la cámara se detiene (para descargar "esta zona"). */
+    onLimitesVisibles: (Coordenada, Coordenada) -> Unit = { _, _ -> },
     margenSuperiorBrujula: Int = 0,
 ) {
     val context = LocalContext.current
@@ -95,6 +97,7 @@ fun MapaRunway(
     val alTocarRuta by rememberUpdatedState(onToqueRuta)
     val alTocarLugar by rememberUpdatedState(onToqueLugar)
     val alArrastrar by rememberUpdatedState(onArrastre)
+    val alVerLimites by rememberUpdatedState(onLimitesVisibles)
 
     // (2) Contenedor de interfaz: la vista nativa del mapa
     val mapView = remember { MapView(context).apply { onCreate(null) } }
@@ -133,6 +136,7 @@ fun MapaRunway(
                 onToqueLugar = { alTocarLugar },
                 onCamaraQuieta = { alMoverse(it) },
                 onArrastre = { alArrastrar() },
+                onLimitesVisibles = { sw, ne -> alVerLimites(sw, ne) },
             )
             controlador = c
         })

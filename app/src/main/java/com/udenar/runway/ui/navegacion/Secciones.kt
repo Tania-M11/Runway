@@ -83,6 +83,9 @@ data class GrafoPlanificar(
 /** Amigos (agregar por código, solicitudes, lista). */
 @Serializable data object RutaAmigos
 
+/** Zonas de mapa descargadas para usar sin conexión. */
+@Serializable data object RutaMapasOffline
+
 /** Historial y estadísticas. */
 @Serializable data object RutaHistorial
 

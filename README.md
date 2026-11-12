@@ -59,6 +59,10 @@ La guía de recursos describe al controlador del mapa (GoogleMap / MapController
 
 Además ejecuta las órdenes de cámara (mover, encuadrar) y registra los eventos: toque, toque sobre una ruta o un marcador (`queryRenderedFeatures`), cámara detenida y arrastre.
 
+## Mapas sin conexión (mecanismo 3)
+
+`data/offline/RepositorioMapasOffline.kt` usa el `OfflineManager` de MapLibre. La app solo define el área (un recuadro) y los zooms (11 a 16). El motor descarga por su cuenta el estilo, las fuentes, los íconos y todas las teselas del área, informa el progreso y, cuando no hay internet, el `MapView` las usa sin ningún cambio en el código. Antes de descargar, `domain/MapasOffline.kt` estima cuántas teselas son (en el zoom z hay 2^z × 2^z teselas en el mundo) para no bajar zonas enormes del servidor público.
+
 ## Estructura
 
 ```
@@ -91,7 +95,7 @@ Sigue la especificación funcional y visual (`Especificacion_funcional_y_visual_
 | 9 | Sincronización de rutas y entrenamientos con Supabase (WorkManager) | 7 | Hecha |
 | 10 | Amigos por código con aceptación y ubicación en vivo mientras entrenan (Realtime) | — | Hecha |
 | 11 | Destino y sugerencias: elegir a dónde llegar (mapa con pin central, búsqueda o lugares sugeridos a la distancia pedida), rutas alternativas hacia el destino; ControladorMapa | 5.4–5.6 | Hecha |
-| 12 | Mapas sin conexión de la zona de una ruta | 5.3 | |
+| 12 | Mapas sin conexión: descargar la zona de una ruta o lo que se ve en Explorar, progreso, superposición del área y gestión en Perfil | 5.3 | Hecha (falta probar en el teléfono) |
 | 13 | Guía en vivo: mapa orientado, progreso sobre la ruta, km restantes y aviso de desvío | 5.7 | |
 | 14 | Perfil editable y pruebas de campo | 5.12 | |
 

@@ -9,6 +9,11 @@ import com.udenar.runway.RunwayApp
 import com.udenar.runway.data.amigos.AmigoEnVivo
 import com.udenar.runway.data.amigos.AmigosEnVivo
 import com.udenar.runway.data.lugares.BuscadorLugares
+import com.udenar.runway.data.offline.RepositorioMapasOffline
+import com.udenar.runway.domain.ProgresoDescarga
+import com.udenar.runway.domain.Teselas
+import com.udenar.runway.domain.ZonaOffline
+import kotlinx.coroutines.flow.combine
 import com.udenar.runway.data.preferencias.PreferenciasMapa
 import com.udenar.runway.data.red.MonitorConexion
 import com.udenar.runway.data.ubicacion.RepositorioUbicacion
@@ -47,7 +52,18 @@ data class ExplorarEstado(
     val aviso: AvisoUbicacion? = null,
     /** Amigos que están corriendo ahora (Supabase Realtime). */
     val amigos: List<AmigoEnVivo> = emptyList(),
-)
+    /** Mapas descargados y lo que se ve en pantalla (para "Descargar esta zona"). */
+    val zonasOffline: List<ZonaOffline> = emptyList(),
+    val vista: Pair<Coordenada, Coordenada>? = null,
+    val claveDescarga: String? = null,
+    val progresoDescarga: ProgresoDescarga? = null,
+    val mensajeDescarga: String? = null,
+) {
+    /** ¿La cámara está sobre una zona descargada? (para el aviso sin conexión) */
+    val sobreZonaDescargada: Boolean get() = zonasOffline.any { it.completa && it.contiene(camara.centro) }
+    val teselasVista: Long get() = vista?.let { (sw, ne) -> Teselas.contar(sw, ne) } ?: 0
+}
+
 
 enum class AvisoUbicacion { PermisoNegado, PermisoBloqueado, UbicacionApagada }
 
@@ -60,6 +76,7 @@ class ExplorarViewModel(
     private val preferencias: PreferenciasMapa,
     private val ubicacion: RepositorioUbicacion,
     private val amigosEnVivo: AmigosEnVivo,
+    private val mapasOffline: RepositorioMapasOffline,
     monitor: MonitorConexion,
 ) : ViewModel() {
 
@@ -82,6 +99,11 @@ class ExplorarViewModel(
     private var centradoInicial = false
 
     init {
+        viewModelScope.launch {
+            combine(mapasOffline.zonas, mapasOffline.descargas) { z, d -> z to d }.collect { (zonas, descargas) ->
+                _estado.update { e -> e.copy(zonasOffline = zonas, progresoDescarga = e.claveDescarga?.let { descargas[it] }) }
+            }
+        }
         viewModelScope.launch {
             monitor.conectado.collect { conectado ->
                 val antes = _estado.value
@@ -190,6 +212,28 @@ class ExplorarViewModel(
         }
     }
 
+    // --- Mapas sin conexión (parte 12) ---
+
+    fun onVista(sw: Coordenada, ne: Coordenada) = _estado.update { it.copy(vista = sw to ne) }
+
+    /** Descarga lo que se ve en pantalla (el motor baja estilo y teselas por su cuenta). */
+    fun descargarVista() {
+        val (sw, ne) = _estado.value.vista ?: return
+        viewModelScope.launch {
+            val nombre = runCatching { buscador.nombreDe(_estado.value.camara.centro) }.getOrNull()?.let { l ->
+                listOf(l.nombre, l.detalle.substringBefore(",")).filter { it.isNotBlank() }.distinct().joinToString(", ")
+            } ?: "Zona descargada"
+            val clave = mapasOffline.clave(sw, ne)
+            val mensaje = when (val r = mapasOffline.descargar(nombre, sw, ne)) {
+                is RepositorioMapasOffline.Resultado.MuyGrande -> "La zona es muy grande. Acércate un poco más."
+                RepositorioMapasOffline.Resultado.Iniciada -> null
+            }
+            _estado.update { it.copy(claveDescarga = if (mensaje == null) clave else it.claveDescarga, mensajeDescarga = mensaje) }
+        }
+    }
+
+    fun cerrarMensajeDescarga() = _estado.update { it.copy(mensajeDescarga = null) }
+
     // --- Amigos en vivo (parte 10) ---
 
     /** Escucha a los amigos que corren mientras la pantalla está visible. */
@@ -256,7 +300,7 @@ class ExplorarViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val c = (this[APPLICATION_KEY] as RunwayApp).contenedor
-                ExplorarViewModel(c.buscadorLugares, c.preferenciasMapa, c.ubicacion, c.amigosEnVivo, c.monitorConexion)
+                ExplorarViewModel(c.buscadorLugares, c.preferenciasMapa, c.ubicacion, c.amigosEnVivo, c.mapasOffline, c.monitorConexion)
             }
         }
     }

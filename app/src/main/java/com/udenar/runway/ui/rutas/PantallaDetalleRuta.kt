@@ -29,7 +29,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.udenar.runway.RunwayApp
+import com.udenar.runway.ui.offline.TarjetaMapaOffline
+import com.udenar.runway.ui.offline.comoSuperposiciones
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.udenar.runway.domain.Modalidad
@@ -70,6 +76,7 @@ fun PantallaDetalleRuta(
     acciones: @Composable ColumnScope.() -> Unit,
 ) {
     val camara = remember(ruta.id) { PosicionCamara(ruta.inicio, 14.0) }
+    val zonas by (LocalContext.current.applicationContext as RunwayApp).contenedor.mapasOffline.zonas.collectAsStateWithLifecycle()
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Box(Modifier.fillMaxWidth().height(320.dp)) {
@@ -78,6 +85,8 @@ fun PantallaDetalleRuta(
                     puntoSeleccionado = ruta.inicio,
                     finRuta = ruta.fin.takeIf { ruta.modalidad == Modalidad.Lineal && destino == null },
                     destinoRuta = destino,
+                    // Zonas descargadas: rectángulo punteado (superposición) sobre el mapa
+                    superposiciones = zonas.comoSuperposiciones(),
                     rutas = listOf(TrazoRuta(ruta.id, ruta.puntos, colorHex, seleccionada = true)),
                     comandos = comandos,
                     onEstiloCargado = onMapaListo,
@@ -150,6 +159,9 @@ fun PantallaDetalleRuta(
                         FilaInfo("Vías principales", ruta.calles.joinToString(", "))
                     }
                 }
+
+                Spacer(Modifier.height(Espacio.l))
+                TarjetaMapaOffline(ruta.puntos, nombre = ruta.nombre)
 
                 Spacer(Modifier.height(Espacio.xl))
                 acciones()
